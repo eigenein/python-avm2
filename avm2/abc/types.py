@@ -4,12 +4,12 @@ from enum import IntFlag
 from typing import NamedTuple
 
 
-class ABCFileFlags(IntFlag):
+class DoABCTagFlags(IntFlag):
     LAZY_INITIALIZE = 1
 
 
-class ABCFile(NamedTuple):
-    flags: ABCFileFlags
+class DoABCTag(NamedTuple):
+    flags: DoABCTagFlags
     name: str
     minor_version: int
     major_version: int

@@ -1,1 +1,1 @@
-from avm2.utils import parse_abc_files
+from avm2.utils import parse_do_abc_tags

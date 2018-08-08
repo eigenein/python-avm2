@@ -53,6 +53,6 @@ def read_tags(io: BinaryIO) -> Iterable[Tag]:
             # Unknown tag type. Skip the tag.
             io.seek(length, SEEK_CUR)
         else:
-            yield Tag(type_=type_, bytes_=io.read(length))
+            yield Tag(type_=type_, raw=io.read(length))
             if type_ == TagType.END:
                 break

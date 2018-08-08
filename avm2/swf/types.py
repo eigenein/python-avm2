@@ -82,4 +82,4 @@ class TagType(IntEnum):
 
 class Tag(NamedTuple):
     type_: TagType
-    bytes_: bytes
+    raw: bytes

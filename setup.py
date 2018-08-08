@@ -9,7 +9,7 @@ setuptools.setup(
     long_description=open('README.md', 'rt').read(),
     long_description_content_type='text/markdown',
     url='https://github.com/eigenein/python-avm2',
-    packages=setuptools.find_packages(),
+    packages=setuptools.find_packages(exclude=['tests']),
     python_requires='>=3.7',
     install_requires=[],
     extras_require={},

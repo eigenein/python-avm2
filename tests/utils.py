@@ -1,8 +1,8 @@
 from pathlib import Path
 from typing import BinaryIO
 
-import tests
+import tests.data
 
 
 def open_test_swf(name: str) -> BinaryIO:
-    return (Path(tests.__file__).parent / name).open('rb')
+    return (Path(tests.data.__file__).parent / name).open('rb')

@@ -10,7 +10,6 @@ class Signature(IntEnum):
     LZMA = ord('Z')
 
 
-# https://github.com/tobytailor/gordon/wiki/SWF-Tag-Support-Table
 class TagType(IntEnum):
     PLACE_OBJECT = 4
     PLACE_OBJECT_2 = 26

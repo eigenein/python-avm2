@@ -9,12 +9,18 @@ from typing import BinaryIO, Iterable
 from avm2.helpers import read_struct
 from avm2.swf.types import Signature, Tag, TagType
 
+U16_STRUCT = Struct('<H')
+U32_STRUCT = Struct('<I')
+
 HEADER_STRUCT = Struct('<BHBI')
 CODE_LENGTH_STRUCT = Struct('<H')
 TAG_LENGTH_STRUCT = Struct('<I')
 
 
 def parse(io: BinaryIO) -> Iterable[Tag]:
+    """
+    Parse SWF file and get an iterable of its tags.
+    """
     signature, ws, version, file_length = read_struct(io, HEADER_STRUCT)  # type: int, int, int, int
     assert ws == 0x5357
     io = decompress(io, Signature(signature))
@@ -24,6 +30,9 @@ def parse(io: BinaryIO) -> Iterable[Tag]:
 
 
 def decompress(io: BinaryIO, signature: Signature) -> BinaryIO:
+    """
+    Decompress the rest of an SWF file, depending on its signature.
+    """
     if signature == Signature.UNCOMPRESSED:
         return io
     if signature == Signature.LZMA:
@@ -36,11 +45,17 @@ def decompress(io: BinaryIO, signature: Signature) -> BinaryIO:
 
 
 def skip_rect(io: BinaryIO):
+    """
+    Skip RECT record.
+    """
     n_bits, = io.read(1)
-    io.seek(((n_bits >> 3) * 4 - 3 + 8) // 8, SEEK_CUR)
+    io.seek(((n_bits >> 3) * 4 - 3 + 8) // 8, SEEK_CUR)  # `n_bits` times 4 minus 3 bits (already read)
 
 
 def read_tags(io: BinaryIO) -> Iterable[Tag]:
+    """
+    Read tags from the stream and get an iterable of tags.
+    """
     while True:
         code_length, = read_struct(io, CODE_LENGTH_STRUCT)  # type: int
         length = code_length & 0b111111

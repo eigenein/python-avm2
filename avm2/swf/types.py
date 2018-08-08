@@ -37,7 +37,6 @@ class TagType(IntEnum):
     DO_ACTION = 12
     DO_INIT_ACTION = 59
     DO_ABC = 82
-    DO_ABC_DEFINE = 72
     DEFINE_SHAPE = 2
     DEFINE_SHAPE_2 = 22
     DEFINE_SHAPE_3 = 32

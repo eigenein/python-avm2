@@ -6,8 +6,8 @@ from io import BytesIO, SEEK_CUR
 from struct import Struct
 from typing import BinaryIO, Iterable
 
+from avm2.helpers import read_struct
 from avm2.swf.types import Signature, Tag, TagType
-from avm2.utils import read_struct
 
 HEADER_STRUCT = Struct('<BHBI')
 CODE_LENGTH_STRUCT = Struct('<H')

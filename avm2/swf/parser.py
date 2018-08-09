@@ -2,73 +2,61 @@ from __future__ import annotations
 
 import lzma
 import zlib
-from io import BytesIO, SEEK_CUR
-from struct import Struct
-from typing import BinaryIO, Iterable
+from typing import Iterable, Union
 
-from avm2.helpers import read_string, read_struct, read_value
+from avm2.io import MemoryViewReader
 from avm2.swf.types import DoABCTag, DoABCTagFlags, Signature, Tag, TagType
 
-U16_STRUCT = Struct('<H')
-U32_STRUCT = Struct('<I')
 
-HEADER_STRUCT = Struct('<BHBI')
-CODE_LENGTH_STRUCT = Struct('<H')
-TAG_LENGTH_STRUCT = Struct('<I')
-
-
-def parse(io: BinaryIO) -> Iterable[Tag]:
+def parse(input_: Union[memoryview, bytes]) -> Iterable[Tag]:
     """
     Parse SWF file and get an iterable of its tags.
     """
-    signature, ws, version, file_length = read_struct(io, HEADER_STRUCT)  # type: int, int, int, int
-    assert ws == 0x5357
-    io = decompress(io, Signature(signature))
-    skip_rect(io)
-    io.seek(4, SEEK_CUR)  # frame rate and frame count
-    return read_tags(io)
+    if isinstance(input_, bytes):
+        input_ = memoryview(input_)
+    reader = MemoryViewReader(input_)
+    signature = Signature(reader.read_u8())
+    assert reader.read_u16() == 0x5357
+    reader.skip(1)  # version
+    reader.skip(4)  # file length
+    reader = decompress(reader, signature)
+    reader.skip_rect()
+    reader.skip(4)  # frame rate and frame count
+    return read_tags(reader)
 
 
-def decompress(io: BinaryIO, signature: Signature) -> BinaryIO:
+def decompress(reader: MemoryViewReader, signature: Signature) -> MemoryViewReader:
     """
     Decompress the rest of an SWF file, depending on its signature.
     """
     if signature == Signature.UNCOMPRESSED:
-        return io
+        return reader
     if signature == Signature.LZMA:
         # https://stackoverflow.com/a/39777419/359730
-        io.seek(4, SEEK_CUR)  # skip compressed length
-        return BytesIO(lzma.decompress(io.read(5) + b'\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF' + io.read()))
+        reader.skip(4)  # skip compressed length
+        return MemoryViewReader(lzma.decompress(reader.read(5).tobytes() + b'\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF' + reader.read_all().tobytes()))
     if signature == Signature.ZLIB:
-        return BytesIO(zlib.decompress(io.read()))
+        return MemoryViewReader(zlib.decompress(reader.read_all()))
     assert False, 'unreachable code'
 
 
-def skip_rect(io: BinaryIO):
-    """
-    Skip RECT record.
-    """
-    n_bits, = io.read(1)
-    io.seek(((n_bits >> 3) * 4 - 3 + 8) // 8, SEEK_CUR)  # `n_bits` times 4 minus 3 bits (already read)
-
-
-def read_tags(io: BinaryIO) -> Iterable[Tag]:
+def read_tags(reader: MemoryViewReader) -> Iterable[Tag]:
     """
     Read tags from the stream and get an iterable of tags.
     """
     while True:
-        code_length: int = read_value(io, CODE_LENGTH_STRUCT)
+        code_length = reader.read_u16()
         length = code_length & 0b111111
         if length == 0x3F:
             # Long tag header.
-            length: int = read_value(io, TAG_LENGTH_STRUCT)
+            length = reader.read_u32()
         try:
             type_ = TagType(code_length >> 6)
         except ValueError:
             # Unknown tag type. Skip the tag.
-            io.seek(length, SEEK_CUR)
+            reader.skip(length)
         else:
-            yield Tag(type_=type_, raw=io.read(length))
+            yield Tag(type_=type_, raw=reader.read(length))
             if type_ == TagType.END:
                 break
 
@@ -78,9 +66,9 @@ def parse_do_abc_tag(tag: Tag) -> DoABCTag:
     Parse DO_ABC tag.
     """
     assert tag.type_ == TagType.DO_ABC
-    io = BytesIO(tag.raw)
+    reader = MemoryViewReader(tag.raw)
     return DoABCTag(
-        flags=DoABCTagFlags(read_value(io, U32_STRUCT)),
-        name=read_string(io),
-        abc_file=io.read(),
+        flags=DoABCTagFlags(reader.read_u32()),
+        name=reader.read_string(),
+        abc_file=reader.read_all(),
     )

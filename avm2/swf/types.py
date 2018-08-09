@@ -85,10 +85,10 @@ class DoABCTagFlags(IntFlag):
 
 class Tag(NamedTuple):
     type_: TagType
-    raw: bytes
+    raw: memoryview
 
 
 class DoABCTag(NamedTuple):
     flags: DoABCTagFlags
     name: str
-    abc_file: bytes
+    abc_file: memoryview

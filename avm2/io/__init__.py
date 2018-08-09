@@ -1,26 +1,19 @@
-from io import SEEK_CUR, SEEK_SET, SEEK_END
-from typing import Optional
-
-
 class MemoryViewIO:
     def __init__(self, buffer: memoryview):
         self.buffer = buffer
         self.position = 0
 
-    def read(self, size: Optional[int] = None) -> memoryview:
-        if size is not None:
-            buffer: memoryview = self.buffer[self.position:self.position + size]
-        else:
-            buffer: memoryview = self.buffer[self.position:]
+    def read(self, size: int) -> memoryview:
+        return self.read_slice(slice(self.position, self.position + size))
+
+    def read_all(self) -> memoryview:
+        return self.read_slice(slice(self.position, None))
+
+    def read_slice(self, slice_: slice) -> memoryview:
+        buffer: memoryview = self.buffer[slice_]
         self.position += len(buffer)
         return buffer
 
-    def seek(self, offset: int, whence: int):
-        if whence == SEEK_CUR:
-            self.position += offset
-        elif whence == SEEK_SET:
-            self.position = offset
-        elif whence == SEEK_END:
-            self.position = len(self.buffer) + offset
-        else:
-            raise ValueError(whence)
+    def skip(self, size: int) -> int:
+        self.position += size
+        return self.position

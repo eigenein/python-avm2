@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from enum import IntEnum
+from enum import IntEnum, IntFlag
 from typing import NamedTuple
 
 
@@ -79,6 +79,16 @@ class TagType(IntEnum):
     PRODUCT_INFO = 41
 
 
+class DoABCTagFlags(IntFlag):
+    LAZY_INITIALIZE = 1
+
+
 class Tag(NamedTuple):
     type_: TagType
     raw: bytes
+
+
+class DoABCTag(NamedTuple):
+    flags: DoABCTagFlags
+    name: str
+    abc_file: bytes

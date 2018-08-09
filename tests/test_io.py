@@ -1,3 +1,5 @@
+import pytest
+
 from avm2.io import MemoryViewReader
 
 
@@ -9,8 +11,7 @@ def test_memory_view_reader_read():
 
 
 def test_memory_view_reader_skip():
-    reader = MemoryViewReader(memoryview(b'abc'))
-    assert reader.skip(1) == 1
+    assert MemoryViewReader(memoryview(b'abc')).skip(1) == 1
 
 
 def test_memory_view_reader_read_all():
@@ -21,18 +22,15 @@ def test_memory_view_reader_read_all():
 
 
 def test_memory_view_reader_read_u8():
-    reader = MemoryViewReader(memoryview(b'\x0A'))
-    assert reader.read_u8() == 0x0A
+    assert MemoryViewReader(memoryview(b'\x0A')).read_u8() == 0x0A
 
 
 def test_memory_view_reader_read_u16():
-    reader = MemoryViewReader(memoryview(b'WS'))
-    assert reader.read_u16() == 0x5357
+    assert MemoryViewReader(memoryview(b'WS')).read_u16() == 0x5357
 
 
 def test_memory_view_reader_read_u32():
-    reader = MemoryViewReader(memoryview(b'\x0D\x0C\x0B\x0A'))
-    assert reader.read_u32() == 0x0A0B0C0D
+    assert MemoryViewReader(memoryview(b'\x0D\x0C\x0B\x0A')).read_u32() == 0x0A0B0C0D
 
 
 def test_memory_view_reader_read_until():
@@ -43,5 +41,18 @@ def test_memory_view_reader_read_until():
 
 
 def test_memory_view_reader_read_string():
-    reader = MemoryViewReader(memoryview(b'AB\x00CD'))
-    assert reader.read_string() == 'AB'
+    assert MemoryViewReader(memoryview(b'AB\x00CD')).read_string() == 'AB'
+
+
+@pytest.mark.parametrize('bytes_, unsigned, value', [
+    (b'\x7F', True, 0x7F),
+    (b'\xFF\x7F', True, 0x3FFF),
+    (b'\xFF\xFF\x7F', True, 0x1FFFFF),
+    (b'\xFF\xFF\xFF\x7F', True, 0xFFFFFFF),
+    (b'\xFF\xFF\xFF\xFF\x0F', True, 0xFFFFFFFF),
+    (b'\xFF\xFF\xFF\xFF\x7F', False, -1),
+    (b'\x7F', False, -1),
+    (b'\x0F', False, 15),
+])
+def test_memory_view_reader_read_int(bytes_: bytes, unsigned: bool, value: int):
+    assert MemoryViewReader(bytes_).read_int(unsigned) == value

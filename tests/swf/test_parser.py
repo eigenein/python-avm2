@@ -6,6 +6,8 @@ from avm2.swf.parser import parse, parse_do_abc_tag
 from avm2.swf.types import DoABCTagFlags, TagType
 from tests.utils import SWF_1, SWF_2, SWF_3, SWF_4
 
+# TODO: move all to test_swf.py?
+
 
 @pytest.mark.parametrize('buffer, n_tags', [
     (SWF_1, 5),

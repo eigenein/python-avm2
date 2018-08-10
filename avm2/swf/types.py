@@ -3,6 +3,8 @@ from __future__ import annotations
 from enum import IntEnum, IntFlag
 from typing import NamedTuple
 
+# TODO: move all enums to enums.py.
+
 
 class Signature(IntEnum):
     UNCOMPRESSED = ord('F')

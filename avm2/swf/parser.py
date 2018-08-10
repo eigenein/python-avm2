@@ -61,6 +61,7 @@ def read_tags(reader: MemoryViewReader) -> Iterable[Tag]:
                 break
 
 
+# TODO: use dataclass and move to types.py.
 def parse_do_abc_tag(tag: Tag) -> DoABCTag:
     """
     Parse DO_ABC tag.

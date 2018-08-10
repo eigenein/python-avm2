@@ -21,7 +21,7 @@ def parse_abc_file(raw: memoryview) -> ABCFile:
 
 
 def read_array(reader: MemoryViewReader, read: Callable[[MemoryViewReader], T], default: Optional[T]) -> Tuple[T, ...]:
-    return (default,) + tuple(read(reader) for _ in range(reader.read_int() - 1))
+    return (default, *(read(reader) for _ in range(1, reader.read_int())))
 
 
 def read_constant_pool(reader: MemoryViewReader) -> ConstantPool:

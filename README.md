@@ -1,4 +1,6 @@
-Adobe SWF file parser and AVM2 virtual machine implementation. Development is still ongoing.
+Adobe Flash SWF file parser and AVM2 virtual machine implementation in pure Python.
+
+Development is still ongoing.
 
 ## Assumptions
 

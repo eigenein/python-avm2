@@ -6,7 +6,7 @@ from typing import Iterable, Union
 
 from avm2.io import MemoryViewReader
 from avm2.swf.enums import Signature
-from avm2.swf.types import DoABCTag, DoABCTagFlags, Tag, TagType
+from avm2.swf.types import Tag, TagType
 
 
 def parse(input_: Union[memoryview, bytes]) -> Iterable[Tag]:
@@ -60,17 +60,3 @@ def read_tags(reader: MemoryViewReader) -> Iterable[Tag]:
             yield Tag(type_=type_, raw=reader.read(length))
             if type_ == TagType.END:
                 break
-
-
-# TODO: use dataclass and move to types.py.
-def parse_do_abc_tag(tag: Tag) -> DoABCTag:
-    """
-    Parse DO_ABC tag.
-    """
-    assert tag.type_ == TagType.DO_ABC
-    reader = MemoryViewReader(tag.raw)
-    return DoABCTag(
-        flags=DoABCTagFlags(reader.read_u32()),
-        name=reader.read_string(),
-        abc_file=reader.read_all(),
-    )

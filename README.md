@@ -5,7 +5,11 @@ Adobe SWF file parser and AVM2 virtual machine implementation. Development is st
 - I just needed to run a particular SWF and not to implement a full-featured virtual machine.
 - I don't care a lot about performance, I rather care about maintainability.
 
-## [`abcFormat.txt`](https://github.com/nxmirrors/tamarin-central/blob/master/core/abcFormat.txt)
+## Links
+
+* https://github.com/ArachisH/Flazzy
+
+### [`abcFormat.txt`](https://github.com/nxmirrors/tamarin-central/blob/master/core/abcFormat.txt)
 
 ```text
 // ***** BEGIN LICENSE BLOCK *****

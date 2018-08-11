@@ -5,7 +5,7 @@ setuptools.setup(
     version='0.1',
     author='Pavel Perestoronin',
     author_email='eigenein@gmail.com',
-    description="A small example package",
+    description='Adobe Flash SWF file parser and AVM2 virtual machine implementation in pure Python',
     long_description=open('README.md', 'rt').read(),
     long_description_content_type='text/markdown',
     url='https://github.com/eigenein/python-avm2',

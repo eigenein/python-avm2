@@ -1,16 +1,7 @@
-from avm2.abc.parser import ABCFile
+from avm2.abc.types import ABCFile
 from avm2.swf.parser import parse, parse_do_abc_tag
-from avm2.swf.types import DoABCTagFlags, TagType
+from avm2.swf.types import TagType
 from tests.utils import SWF_2
-
-# TODO: move all to test_abc.py?
-
-
-def test_parse_do_abc_tag_2():
-    tag, = (tag for tag in parse(SWF_2) if tag.type_ == TagType.DO_ABC)
-    do_abc_tag = parse_do_abc_tag(tag)
-    assert do_abc_tag.flags == DoABCTagFlags.LAZY_INITIALIZE
-    assert do_abc_tag.name == 'merged'
 
 
 def test_abc_file_2():

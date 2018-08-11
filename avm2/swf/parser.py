@@ -5,7 +5,8 @@ import zlib
 from typing import Iterable, Union
 
 from avm2.io import MemoryViewReader
-from avm2.swf.types import DoABCTag, DoABCTagFlags, Signature, Tag, TagType
+from avm2.swf.enums import Signature
+from avm2.swf.types import DoABCTag, DoABCTagFlags, Tag, TagType
 
 
 def parse(input_: Union[memoryview, bytes]) -> Iterable[Tag]:

@@ -6,8 +6,6 @@ from avm2.swf.parser import parse, parse_do_abc_tag
 from avm2.swf.types import DoABCTagFlags, TagType
 from tests.utils import SWF_1, SWF_2, SWF_3, SWF_4
 
-# TODO: move all to test_swf.py?
-
 
 @pytest.mark.parametrize('buffer, n_tags', [
     (SWF_1, 5),
@@ -24,3 +22,4 @@ def test_parse_do_abc_tag_2():
     do_abc_tag = parse_do_abc_tag(tag)
     assert do_abc_tag.flags == DoABCTagFlags.LAZY_INITIALIZE
     assert do_abc_tag.name == 'merged'
+    assert do_abc_tag.abc_file

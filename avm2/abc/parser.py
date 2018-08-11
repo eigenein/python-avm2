@@ -11,11 +11,13 @@ def read_string(reader: MemoryViewReader) -> str:
     return reader.read(reader.read_int()).tobytes().decode('utf-8')
 
 
-def read_array(reader: MemoryViewReader, read: Callable[[MemoryViewReader], T]) -> Tuple[T, ...]:
+def read_array(reader: MemoryViewReader, read: Callable[[MemoryViewReader], T], size: Optional[int] = None) -> Tuple[T, ...]:
     """
     Read variable-length array.
     """
-    return tuple(read(reader) for _ in range(reader.read_int()))
+    if size is None:
+        size = reader.read_int()
+    return tuple(read(reader) for _ in range(size))
 
 
 def read_array_with_default(reader: MemoryViewReader, read: Callable[[MemoryViewReader], T], default: Optional[T]) -> Tuple[T, ...]:

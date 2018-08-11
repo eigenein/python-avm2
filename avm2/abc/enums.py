@@ -1,4 +1,4 @@
-from enum import IntEnum
+from enum import IntEnum, IntFlag
 
 
 class NamespaceKind(IntEnum):
@@ -23,3 +23,34 @@ class MultinameKind(IntEnum):
     MULTINAME_L = 0x1B
     MULTINAME_LA = 0x1C
     TYPE_NAME = 0x1D
+
+
+class MethodFlags(IntFlag):
+    NONE = 0x00
+    NEED_ARGUMENTS = 0x01
+    NEED_ACTIVATION = 0x02
+    NEED_REST = 0x04
+    HAS_OPTIONAL = 0x08
+    IGNORE_REST = 0x10
+    EXPLICIT = 0x20
+    SET_DXNS = 0x40
+    HAS_PARAM_NAMES = 0x80
+
+
+class OptionKind(IntEnum):
+    INT = 0x03
+    UINT = 0x04
+    DOUBLE = 0x06
+    UTF8 = 0x01
+    TRUE = 0x0B
+    FALSE = 0x0A
+    NULL = 0x0C
+    UNDEFINED = 0x00
+    NAMESPACE = 0x08
+    PACKAGE_NAMESPACE = 0x16
+    PACKAGE_INTERNAL_NS = 0x17
+    PROTECTED_NAMESPACE = 0x18
+    EXPLICIT_NAMESPACE = 0x19
+    STATIC_PROTECTED_NS = 0x1A
+    PRIVATE_NS = 0x05
+    MULTINAME = 0x09

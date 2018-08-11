@@ -17,3 +17,4 @@ def test_abc_file_2():
     assert len(abc_file.constant_pool.namespaces) == 9048
     assert len(abc_file.constant_pool.ns_sets) == 1406
     assert len(abc_file.constant_pool.multinames) == 38608
+    assert len(abc_file.methods) == 35243

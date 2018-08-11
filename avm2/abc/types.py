@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from functools import partial
 from typing import Optional, Tuple
 
-from avm2.abc.enums import MultinameKind, NamespaceKind
+from avm2.abc.enums import MultinameKind, NamespaceKind, MethodFlags, OptionKind
 from avm2.abc.parser import read_array, read_array_with_default, read_string
 from avm2.io import MemoryViewReader
 
@@ -15,14 +15,14 @@ class ABCFile:
     minor_version: int
     major_version: int
     constant_pool: ConstantPool
-    # methods: Tuple[MethodInfo, ...]
+    methods: Tuple[MethodInfo, ...]
 
     def __init__(self, raw: memoryview):
         reader = MemoryViewReader(raw)
         self.minor_version = reader.read_u16()
         self.major_version = reader.read_u16()
         self.constant_pool = ConstantPool(reader)
-        # self.methods = read_array(reader, MethodInfo)
+        self.methods = read_array(reader, MethodInfo)
 
 
 @dataclass
@@ -96,4 +96,30 @@ class Multiname:
 @dataclass
 class MethodInfo:
     param_count: int
-    ...
+    return_type: int
+    param_types: Tuple[int, ...]
+    name: int
+    flags: MethodFlags
+    options: Optional[Tuple[OptionDetail, ...]] = None
+    param_names: Optional[Tuple[int, ...]] = None
+
+    def __init__(self, reader: MemoryViewReader):
+        self.param_count = reader.read_int()
+        self.return_type = reader.read_int()
+        self.param_types = read_array(reader, MemoryViewReader.read_int, self.param_count)
+        self.name = reader.read_int()
+        self.flags = MethodFlags(reader.read_u8())
+        if MethodFlags.HAS_OPTIONAL in self.flags:
+            self.options = read_array(reader, OptionDetail)
+        if MethodFlags.HAS_PARAM_NAMES in self.flags:
+            self.param_names = read_array(reader, MemoryViewReader.read_int, self.param_count)
+
+
+@dataclass
+class OptionDetail:
+    val: int
+    kind: OptionKind
+
+    def __init__(self, reader: MemoryViewReader):
+        self.val = reader.read_int()
+        self.kind = OptionKind(reader.read_u8())

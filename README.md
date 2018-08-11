@@ -7,7 +7,8 @@ Adobe SWF file parser and AVM2 virtual machine implementation. Development is st
 
 ## Links
 
-* https://github.com/ArachisH/Flazzy
+- https://wwwimages2.adobe.com/content/dam/acom/en/devnet/pdf/avm2overview.pdf
+- https://github.com/ArachisH/Flazzy
 
 ### [`abcFormat.txt`](https://github.com/nxmirrors/tamarin-central/blob/master/core/abcFormat.txt)
 

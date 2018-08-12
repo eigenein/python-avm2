@@ -3,9 +3,9 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from functools import partial
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
-from avm2.abc.enums import MultinameKind, NamespaceKind, MethodFlags, OptionKind
+from avm2.abc.enums import MultinameKind, NamespaceKind, MethodFlags, ConstantKind, ClassFlags, TraitKind, TraitAttributes
 from avm2.abc.parser import read_array, read_array_with_default, read_string
 from avm2.io import MemoryViewReader
 
@@ -16,6 +16,8 @@ class ABCFile:
     major_version: int
     constant_pool: ConstantPool
     methods: Tuple[MethodInfo, ...]
+    metadata: Tuple[MetadataInfo, ...]
+    instances: Tuple[InstanceInfo, ...]
 
     def __init__(self, raw: memoryview):
         reader = MemoryViewReader(raw)
@@ -23,6 +25,9 @@ class ABCFile:
         self.major_version = reader.read_u16()
         self.constant_pool = ConstantPool(reader)
         self.methods = read_array(reader, MethodInfo)
+        self.metadata = read_array(reader, MetadataInfo)
+        class_count = reader.read_int()
+        self.instances = read_array(reader, InstanceInfo, class_count)
 
 
 @dataclass
@@ -118,8 +123,121 @@ class MethodInfo:
 @dataclass
 class OptionDetail:
     val: int
-    kind: OptionKind
+    kind: ConstantKind
 
     def __init__(self, reader: MemoryViewReader):
         self.val = reader.read_int()
-        self.kind = OptionKind(reader.read_u8())
+        self.kind = ConstantKind(reader.read_u8())
+
+
+@dataclass
+class MetadataInfo:
+    name: int
+    items: Tuple[ItemInfo, ...]
+
+    def __init__(self, reader: MemoryViewReader):
+        self.name = reader.read_int()
+        self.items = read_array(reader, ItemInfo)
+
+
+@dataclass
+class ItemInfo:
+    key: int
+    value: int
+
+    def __init__(self, reader: MemoryViewReader):
+        self.key = reader.read_int()
+        self.value = reader.read_int()
+
+
+@dataclass
+class InstanceInfo:
+    name: int
+    super_name: int
+    flags: ClassFlags
+    interfaces: Tuple[int, ...]
+    iinit: int
+    traits: Tuple[TraitInfo, ...]
+    protected_ns: Optional[int] = None
+
+    def __init__(self, reader: MemoryViewReader):
+        self.name = reader.read_int()
+        self.super_name = reader.read_int()
+        self.flags = ClassFlags(reader.read_u8())
+        if ClassFlags.PROTECTED_NS in self.flags:
+            self.protected_ns = reader.read_int()
+        self.interfaces = read_array(reader, MemoryViewReader.read_int)
+        self.iinit = reader.read_int()
+        self.traits = read_array(reader, TraitInfo)
+
+
+@dataclass
+class TraitInfo:
+    name: int
+    kind: TraitKind
+    attributes: TraitAttributes
+    data: Union[TraitSlot, TraitClass, TraitFunction, TraitMethod]
+    metadata: Optional[Tuple[int, ...]] = None
+
+    def __init__(self, reader: MemoryViewReader):
+        self.name = reader.read_int()
+        kind = reader.read_u8()
+        self.kind = TraitKind(kind & 0x0F)
+        self.attributes = TraitAttributes(kind >> 4)
+        if self.kind in (TraitKind.SLOT, TraitKind.CONST):
+            self.data = TraitSlot(reader)
+        elif self.kind == TraitKind.CLASS:
+            self.data = TraitClass(reader)
+        elif self.kind == TraitKind.FUNCTION:
+            self.data = TraitFunction(reader)
+        elif self.kind in (TraitKind.METHOD, TraitKind.GETTER, TraitKind.SETTER):
+            self.data = TraitMethod(reader)
+        else:
+            assert False, 'unreachable code'
+        if TraitAttributes.METADATA in self.attributes:
+            self.metadata = read_array(reader, MemoryViewReader.read_int)
+
+
+@dataclass
+class TraitSlot:
+    slot_id: int
+    type_name: int
+    vindex: int
+    vkind: ConstantKind
+
+    def __init__(self, reader: MemoryViewReader):
+        self.slot_id = reader.read_int()
+        self.type_name = reader.read_int()
+        self.vindex = reader.read_int()
+        if self.vindex:
+            self.vkind = ConstantKind(reader.read_u8())
+
+
+@dataclass
+class TraitClass:
+    slot_id: int
+    class_: int
+
+    def __init__(self, reader: MemoryViewReader):
+        self.slot_id = reader.read_int()
+        self.class_ = reader.read_int()
+
+
+@dataclass
+class TraitFunction:
+    slot_id: int
+    function_: int
+
+    def __init__(self, reader: MemoryViewReader):
+        self.slot_id = reader.read_int()
+        self.function_ = reader.read_int()
+
+
+@dataclass
+class TraitMethod:
+    disposition_id: int
+    method: int
+
+    def __init__(self, reader: MemoryViewReader):
+        self.disposition_id = reader.read_int()
+        self.method = reader.read_int()

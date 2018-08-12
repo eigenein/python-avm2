@@ -37,7 +37,7 @@ class MethodFlags(IntFlag):
     HAS_PARAM_NAMES = 0x80
 
 
-class OptionKind(IntEnum):
+class ConstantKind(IntEnum):
     INT = 0x03
     UINT = 0x04
     DOUBLE = 0x06
@@ -54,3 +54,27 @@ class OptionKind(IntEnum):
     STATIC_PROTECTED_NS = 0x1A
     PRIVATE_NS = 0x05
     MULTINAME = 0x09
+
+
+class ClassFlags(IntFlag):
+    DYNAMIC = 0x00
+    SEALED = 0x01
+    FINAL = 0x02
+    INTERFACE = 0x04
+    PROTECTED_NS = 0x08
+
+
+class TraitKind(IntEnum):
+    SLOT = 0
+    METHOD = 1
+    GETTER = 2
+    SETTER = 3
+    CLASS = 4
+    FUNCTION = 5
+    CONST = 6
+
+
+class TraitAttributes(IntFlag):
+    FINAL = 0x01
+    OVERRIDE = 0x02
+    METADATA = 0x04

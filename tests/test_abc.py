@@ -1,6 +1,6 @@
 from typing import Tuple
 
-from avm2.abc.instructions import BaseInstruction, parse_code
+from avm2.abc.instructions import Instruction, parse_code
 from avm2.abc.types import ABCFile, MethodBodyInfo
 from avm2.io import MemoryViewReader
 from avm2.swf.parser import parse
@@ -30,11 +30,10 @@ def test_abc_file_2():
     assert len(abc_file.method_bodies) == 34687
     assert reader.is_eof()
 
-    for instruction in parse_code(MemoryViewReader(abc_file.method_bodies[0].code)):
-        print(instruction)
+    assert len(parse_method_body(abc_file.method_bodies[0])) == 103
+    assert len(parse_method_body(abc_file.method_bodies[1])) == 69
+    assert len(parse_method_body(abc_file.method_bodies[2])) == 69
 
-    assert len(parse_method_body(abc_file.method_bodies[0])) == 0
 
-
-def parse_method_body(method_body_info: MethodBodyInfo) -> Tuple[BaseInstruction, ...]:
+def parse_method_body(method_body_info: MethodBodyInfo) -> Tuple[Instruction, ...]:
     return tuple(parse_code(MemoryViewReader(method_body_info.code)))

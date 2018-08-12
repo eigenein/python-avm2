@@ -1,16 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, fields
-from typing import Any, Callable, Dict, Iterable, Type, TypeVar
+from typing import Any, Callable, ClassVar, Dict, Iterable, Type, TypeVar, Tuple
 
 from avm2.io import MemoryViewReader
+from avm2.abc.parser import read_array
 
 
-def parse_code(reader: MemoryViewReader) -> Iterable[BaseInstruction]:
+def parse_code(reader: MemoryViewReader) -> Iterable[Instruction]:
     while not reader.is_eof():
         class_ = opcode_to_instruction[reader.read_u8()]
         # noinspection PyCallingNonCallable
-        yield class_(*(argument_readers[field.type](reader) for field in fields(class_)))
+        yield class_(reader)
 
 
 u8 = int
@@ -19,216 +20,187 @@ uint = int
 s24 = int
 
 
-argument_readers: Dict[str, Callable[[MemoryViewReader], Any]] = {
-    u8.__name__: MemoryViewReader.read_u8,
-    u30.__name__: MemoryViewReader.read_int,
-    uint.__name__: MemoryViewReader.read_u32,
-    s24.__name__: MemoryViewReader.read_s24,
-}
-
-
 @dataclass
-class BaseInstruction:
-    pass
+class Instruction:
+    readers: ClassVar[Dict[str, Callable[[MemoryViewReader], Any]]] = {
+        'u8': MemoryViewReader.read_u8,
+        'u30': MemoryViewReader.read_int,
+        'uint': MemoryViewReader.read_u32,
+        's24': MemoryViewReader.read_s24,
+    }
+
+    def __init__(self, reader: MemoryViewReader):
+        for field in fields(self):
+            setattr(self, field.name, self.readers[field.type](reader))
 
 
-T = TypeVar('T', bound=BaseInstruction)
+T = TypeVar('T', bound=Instruction)
 opcode_to_instruction: Dict[int, Type[T]] = {}
 
 
 def instruction(opcode: int) -> Callable[[], Type[T]]:
     def wrapper(class_: Type[T]) -> Type[T]:
-        assert opcode not in opcode_to_instruction
+        assert opcode not in opcode_to_instruction, opcode_to_instruction[opcode]
         opcode_to_instruction[opcode] = class_
-        return class_
+        return dataclass(init=False)(class_)
     return wrapper
 
 
 @instruction(160)
-@dataclass
-class AddInstruction(BaseInstruction):
+class Add(Instruction):
     pass
 
 
 @instruction(197)
-@dataclass
-class AddIntegerInstruction(BaseInstruction):
+class AddInteger(Instruction):
     pass
 
 
 @instruction(134)
-@dataclass
-class AsTypeInstruction(BaseInstruction):
+class AsType(Instruction):
     index: u30
 
 
 @instruction(135)
-@dataclass
-class AsTypeLateInstruction(BaseInstruction):
+class AsTypeLate(Instruction):
     pass
 
 
 @instruction(168)
-@dataclass
-class BitAndInstruction(BaseInstruction):
+class BitAnd(Instruction):
     pass
 
 
 @instruction(151)
-@dataclass
-class BitNotInstruction(BaseInstruction):
+class BitNot(Instruction):
     pass
 
 
 @instruction(169)
-@dataclass
-class BitOrInstruction(BaseInstruction):
+class BitOr(Instruction):
     pass
 
 
 @instruction(170)
-@dataclass
-class BitXorInstruction(BaseInstruction):
+class BitXor(Instruction):
     pass
 
 
 @instruction(65)
-@dataclass
-class CallInstruction(BaseInstruction):
+class Call(Instruction):
     arg_count: u30
 
 
 @instruction(67)
-@dataclass
-class CallMethodInstruction(BaseInstruction):
-    index: int
+class CallMethod(Instruction):
+    index: u30
     arg_count: u30
 
 
 @instruction(70)
-@dataclass
-class CallPropertyInstruction(BaseInstruction):
-    index: int
+class CallProperty(Instruction):
+    index: u30
     arg_count: u30
 
 
 @instruction(76)
-@dataclass
-class CallPropLexInstruction(BaseInstruction):
+class CallPropLex(Instruction):
     index: u30
     arg_count: u30
 
 
 @instruction(79)
-@dataclass
-class CallPropVoidInstruction(BaseInstruction):
+class CallPropVoid(Instruction):
     index: u30
     arg_count: u30
 
 
 @instruction(68)
-@dataclass
-class CallStaticInstruction(BaseInstruction):
+class CallStatic(Instruction):
     index: u30
     arg_count: u30
 
 
 @instruction(69)
-@dataclass
-class CallSuperInstruction(BaseInstruction):
+class CallSuper(Instruction):
     index: u30
     arg_count: u30
 
 
 @instruction(78)
-@dataclass
-class CallSuperVoidInstruction(BaseInstruction):
+class CallSuperVoid(Instruction):
     index: u30
     arg_count: u30
 
 
 @instruction(120)
-@dataclass
-class CheckFilterInstruction(BaseInstruction):
+class CheckFilter(Instruction):
     pass
 
 
 @instruction(128)
-@dataclass
-class CoerceInstruction(BaseInstruction):
+class Coerce(Instruction):
     index: u30
 
 
 @instruction(130)
-@dataclass
-class CoerceAnyInstruction(BaseInstruction):
+class CoerceAny(Instruction):
     pass
 
 
 @instruction(133)
-@dataclass
-class CoerceStringInstruction(BaseInstruction):
+class CoerceString(Instruction):
     pass
 
 
 @instruction(66)
-@dataclass
-class ConstructInstruction(BaseInstruction):
+class Construct(Instruction):
     arg_count: u30
 
 
 @instruction(74)
-@dataclass
-class ConstructPropInstruction(BaseInstruction):
+class ConstructProp(Instruction):
     index: u30
     arg_count: u30
 
 
 @instruction(73)
-@dataclass
-class ConstructInstruction(BaseInstruction):
+class Construct(Instruction):
     arg_count: u30
 
 
 @instruction(118)
-@dataclass
-class ConvertBooleanInstruction(BaseInstruction):
+class ConvertToBoolean(Instruction):
     pass
 
 
 @instruction(115)
-@dataclass
-class ConvertIntegerInstruction(BaseInstruction):
+class ConvertToInteger(Instruction):
     pass
 
 
 @instruction(117)
-@dataclass
-class ConvertDoubleInstruction(BaseInstruction):
+class ConvertToDouble(Instruction):
     pass
 
 
 @instruction(119)
-@dataclass
-class ConvertObjectInstruction(BaseInstruction):
+class ConvertToObject(Instruction):
     pass
 
 
 @instruction(116)
-@dataclass
-class ConvertUnsignedIntegerInstruction(BaseInstruction):
+class ConvertToUnsignedInteger(Instruction):
     pass
 
 
 @instruction(112)
-@dataclass
-class ConvertStringInstruction(BaseInstruction):
+class ConvertToString(Instruction):
     pass
 
 
 @instruction(239)
-@dataclass
-class DebugInstruction(BaseInstruction):
+class Debug(Instruction):
     debug_type: u8
     index: u30
     reg: u8
@@ -236,265 +208,573 @@ class DebugInstruction(BaseInstruction):
 
 
 @instruction(241)
-@dataclass
-class DebugFileInstruction(BaseInstruction):
+class DebugFile(Instruction):
     index: u30
 
 
 @instruction(240)
-@dataclass
-class DebugLineInstruction(BaseInstruction):
+class DebugLine(Instruction):
     linenum: u30
 
 
 @instruction(148)
-@dataclass
-class DecLocalInstruction(BaseInstruction):
+class DecLocal(Instruction):
     index: u30
 
 
 @instruction(195)
-@dataclass
-class DecLocalIntegerInstruction(BaseInstruction):
+class DecLocalInteger(Instruction):
     index: u30
 
 
 @instruction(147)
-@dataclass
-class DecrementInstruction(BaseInstruction):
+class Decrement(Instruction):
     pass
 
 
 @instruction(193)
-@dataclass
-class DecrementIntegerInstruction(BaseInstruction):
+class DecrementInteger(Instruction):
     pass
 
 
 @instruction(106)
-@dataclass
-class DeletePropertyInstruction(BaseInstruction):
+class DeleteProperty(Instruction):
     index: u30
 
 
 @instruction(163)
-@dataclass
-class DivideInstruction(BaseInstruction):
+class Divide(Instruction):
     pass
 
 
 @instruction(42)
-@dataclass
-class DupInstruction(BaseInstruction):
+class Dup(Instruction):
     pass
 
 
 @instruction(6)
-@dataclass
-class DXNSInstruction(BaseInstruction):
+class DXNS(Instruction):
     index: u30
 
 
 @instruction(7)
-@dataclass
-class DXNSLateInstruction(BaseInstruction):
+class DXNSLate(Instruction):
     pass
 
 
 @instruction(171)
-@dataclass
-class EqualsOperation(BaseInstruction):
+class EqualsOperation(Instruction):
     pass
 
 
 @instruction(114)
-@dataclass
-class EscXAttrInstruction(BaseInstruction):
+class EscXAttr(Instruction):
     pass
 
 
 @instruction(113)
-@dataclass
-class EscXElemInstruction(BaseInstruction):
+class EscXElem(Instruction):
     pass
 
 
 @instruction(94)
-@dataclass
-class FindPropertyInstruction(BaseInstruction):
+class FindProperty(Instruction):
     index: u30
 
 
 @instruction(93)
-@dataclass
-class FindPropStrictInstruction(BaseInstruction):
+class FindPropStrict(Instruction):
     index: u30
 
 
 @instruction(89)
-@dataclass
-class GetDescendantsInstruction(BaseInstruction):
+class GetDescendants(Instruction):
     index: u30
 
 
 @instruction(100)
-@dataclass
-class GetGlobalScopeInstruction(BaseInstruction):
+class GetGlobalScope(Instruction):
     pass
 
 
 @instruction(110)
-@dataclass
-class GetGlobalSlotInstruction(BaseInstruction):
+class GetGlobalSlot(Instruction):
     slot_index: u30
 
 
 @instruction(96)
-@dataclass
-class GetLexInstruction(BaseInstruction):
+class GetLex(Instruction):
     index: u30
 
 
 @instruction(98)
-@dataclass
-class GetLocalInstruction(BaseInstruction):
+class GetLocal(Instruction):
     index: u30
 
 
 @instruction(208)
-@dataclass
-class GetLocal1Instruction(BaseInstruction):
+class GetLocal1(Instruction):
     pass
 
 
 @instruction(209)
-@dataclass
-class GetLocal2Instruction(BaseInstruction):
+class GetLocal2(Instruction):
     pass
 
 
 @instruction(210)
-@dataclass
-class GetLocal3Instruction(BaseInstruction):
+class GetLocal3(Instruction):
     pass
 
 
 @instruction(211)
-@dataclass
-class GetLocal4Instruction(BaseInstruction):
+class GetLocal4(Instruction):
     pass
 
 
 @instruction(102)
-@dataclass
-class GetPropertyInstruction(BaseInstruction):
+class GetProperty(Instruction):
     index: u30
 
 
 @instruction(101)
-@dataclass
-class GetScopeObjectInstruction(BaseInstruction):
+class GetScopeObject(Instruction):
     index: u8
 
 
 @instruction(108)
-@dataclass
-class GetSlotInstruction(BaseInstruction):
+class GetSlot(Instruction):
     slot_index: u30
 
 
 @instruction(4)
-@dataclass
-class GetSuperInstruction(BaseInstruction):
+class GetSuper(Instruction):
     index: u30
 
 
 @instruction(176)
-@dataclass
-class GreaterEqualsInstruction(BaseInstruction):
+class GreaterEquals(Instruction):
     pass
 
 
 @instruction(175)
-@dataclass
-class GreaterThanInstruction(BaseInstruction):
+class GreaterThan(Instruction):
     pass
 
 
 @instruction(31)
-@dataclass
-class HasNextInstruction(BaseInstruction):
+class HasNext(Instruction):
     pass
 
 
 @instruction(50)
-@dataclass
-class HasNext2Instruction(BaseInstruction):
+class HasNext2(Instruction):
     object_reg: uint
     index_reg: uint
 
 
 @instruction(19)
-@dataclass
-class IfEqInstruction(BaseInstruction):
+class IfEq(Instruction):
     offset: s24
 
 
 @instruction(18)
-@dataclass
-class IfFalseInstruction(BaseInstruction):
+class IfFalse(Instruction):
     offset: s24
 
 
 @instruction(24)
-@dataclass
-class IfGEInstruction(BaseInstruction):
+class IfGE(Instruction):
     offset: s24
 
 
 @instruction(23)
-@dataclass
-class IfGTInstruction(BaseInstruction):
+class IfGT(Instruction):
     offset: s24
 
 
 @instruction(22)
-@dataclass
-class IfLEInstruction(BaseInstruction):
+class IfLE(Instruction):
     offset: s24
 
 
 @instruction(21)
-@dataclass
-class IfLTInstruction(BaseInstruction):
+class IfLT(Instruction):
     offset: s24
 
 
 @instruction(15)
-@dataclass
-class IfNGEInstruction(BaseInstruction):
+class IfNGE(Instruction):
     offset: s24
 
 
 @instruction(14)
-@dataclass
-class IfNGTInstruction(BaseInstruction):
+class IfNGT(Instruction):
     offset: s24
 
 
 @instruction(13)
-@dataclass
-class IfNLEInstruction(BaseInstruction):
+class IfNLE(Instruction):
     offset: s24
 
 
 @instruction(12)
-@dataclass
-class IfNLTInstruction(BaseInstruction):
+class IfNLT(Instruction):
     offset: s24
 
 
 @instruction(20)
-@dataclass
-class IfNEInstruction(BaseInstruction):
+class IfNE(Instruction):
     offset: s24
+
+
+@instruction(25)
+class IfStrictEq(Instruction):
+    offset: s24
+
+
+@instruction(26)
+class IfStrictNE(Instruction):
+    offset: s24
+
+
+@instruction(17)
+class IfTrue(Instruction):
+    offset: s24
+
+
+@instruction(180)
+class In(Instruction):
+    pass
+
+
+@instruction(146)
+class IncLocal(Instruction):
+    index: u30
+
+
+@instruction(194)
+class IncLocalInteger(Instruction):
+    index: u30
+
+
+@instruction(145)
+class Increment(Instruction):
+    pass
+
+
+@instruction(192)
+class IncrementInteger(Instruction):
+    pass
+
+
+@instruction(104)
+class InitProperty(Instruction):
+    index: u30
+
+
+@instruction(177)
+class InstanceOf(Instruction):
+    pass
+
+
+@instruction(178)
+class IsType(Instruction):
+    index: u30
+
+
+@instruction(179)
+class IsTypeLate(Instruction):
+    pass
+
+
+@instruction(16)
+class Jump(Instruction):
+    offset: s24
+
+
+@instruction(8)
+class Kill(Instruction):
+    index: u30
+
+
+@instruction(9)
+class Label(Instruction):
+    pass
+
+
+@instruction(174)
+class LessEquals(Instruction):
+    pass
+
+
+@instruction(173)
+class LessThan(Instruction):
+    pass
+
+
+@instruction(27)
+class LookupSwitch(Instruction):
+    default_offset: s24
+    case_offsets: Tuple[s24, ...]
+
+    # noinspection PyMissingConstructor
+    def __init__(self, reader: MemoryViewReader):
+        self.default_offset = reader.read_s24()
+        case_count = reader.read_int()
+        self.case_offsets = read_array(reader, MemoryViewReader.read_s24, case_count + 1)
+
+
+@instruction(165)
+class LeftShift(Instruction):
+    pass
+
+
+@instruction(164)
+class Modulo(Instruction):
+    pass
+
+
+@instruction(162)
+class Multiply(Instruction):
+    pass
+
+
+@instruction(199)
+class MultiplyInteger(Instruction):
+    pass
+
+
+@instruction(144)
+class Negate(Instruction):
+    pass
+
+
+@instruction(196)
+class NegateInteger(Instruction):
+    pass
+
+
+@instruction(87)
+class NewActivation(Instruction):
+    pass
+
+
+@instruction(86)
+class NewArray(Instruction):
+    arg_count: u30
+
+
+@instruction(90)
+class NewCatch(Instruction):
+    index: u30
+
+
+@instruction(88)
+class NewClass(Instruction):
+    index: u30
+
+
+@instruction(64)
+class NewFunction(Instruction):
+    index: u30
+
+
+@instruction(85)
+class NewObject(Instruction):
+    arg_count: u30
+
+
+@instruction(30)
+class NextName(Instruction):
+    pass
+
+
+@instruction(35)
+class NextValue(Instruction):
+    pass
+
+
+@instruction(2)
+class Nop(Instruction):
+    pass
+
+
+@instruction(150)
+class Not(Instruction):
+    pass
+
+
+@instruction(41)
+class Pop(Instruction):
+    pass
+
+
+@instruction(29)
+class PopScope(Instruction):
+    pass
+
+
+@instruction(36)
+class PushByte(Instruction):
+    byte_value: u8
+
+
+@instruction(47)
+class PushDouble(Instruction):
+    index: u30
+
+
+@instruction(39)
+class PushFalse(Instruction):
+    pass
+
+
+@instruction(45)
+class PushInteger(Instruction):
+    index: u30
+
+
+@instruction(49)
+class PushNamespace(Instruction):
+    index: u30
+
+
+@instruction(40)
+class PushNaN(Instruction):
+    pass
+
+
+@instruction(32)
+class PushNull(Instruction):
+    pass
+
+
+@instruction(48)
+class PushScope(Instruction):
+    pass
+
+
+@instruction(37)
+class PushShort(Instruction):
+    value: u30
+
+
+@instruction(44)
+class PushString(Instruction):
+    index: u30
+
+
+@instruction(38)
+class PushTrue(Instruction):
+    pass
+
+
+@instruction(46)
+class PushUnsignedInteger(Instruction):
+    index: u30
+
+
+@instruction(33)
+class PushUndefined(Instruction):
+    pass
+
+
+@instruction(28)
+class PushWith(Instruction):
+    pass
+
+
+@instruction(72)
+class ReturnValue(Instruction):
+    pass
+
+
+@instruction(71)
+class ReturnVoid(Instruction):
+    pass
+
+
+@instruction(166)
+class RightShift(Instruction):
+    pass
+
+
+@instruction(99)
+class SetLocal(Instruction):
+    index: u30
+
+
+@instruction(212)
+class SetLocal1(Instruction):
+    pass
+
+
+@instruction(213)
+class SetLocal2(Instruction):
+    pass
+
+
+@instruction(214)
+class SetLocal3(Instruction):
+    pass
+
+
+@instruction(215)
+class SetLocal4(Instruction):
+    pass
+
+
+@instruction(111)
+class SetGlobalSlot(Instruction):
+    slot_index: u30
+
+
+@instruction(97)
+class SetProperty(Instruction):
+    index: u30
+
+
+@instruction(109)
+class SetSlot(Instruction):
+    slot_index: u30
+
+
+@instruction(5)
+class SetSuper(Instruction):
+    index: u30
+
+
+@instruction(172)
+class StrictEquals(Instruction):
+    pass
+
+
+@instruction(161)
+class Subtract(Instruction):
+    pass
+
+
+@instruction(198)
+class SubtractInteger(Instruction):
+    pass
+
+
+@instruction(43)
+class Swap(Instruction):
+    pass
+
+
+@instruction(3)
+class Throw(Instruction):
+    pass
+
+
+@instruction(149)
+class TypeOf(Instruction):
+    pass
+
+
+@instruction(167)
+class UnsignedRightShift(Instruction):
+    pass

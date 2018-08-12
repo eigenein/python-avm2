@@ -1,17 +1,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, fields
-from typing import Any, Callable, ClassVar, Dict, Iterable, Type, TypeVar, Tuple
+from typing import Any, Callable, ClassVar, Dict, Tuple, Type, TypeVar
 
-from avm2.io import MemoryViewReader
+import avm2
 from avm2.abc.parser import read_array
+from avm2.io import MemoryViewReader
 
 
-def parse_code(reader: MemoryViewReader) -> Iterable[Instruction]:
-    while not reader.is_eof():
-        class_ = opcode_to_instruction[reader.read_u8()]
-        # noinspection PyCallingNonCallable
-        yield class_(reader)
+def read_instruction(reader: MemoryViewReader) -> Instruction:
+    # noinspection PyCallingNonCallable
+    return opcode_to_instruction[reader.read_u8()](reader)
 
 
 u8 = int
@@ -32,6 +31,9 @@ class Instruction:
     def __init__(self, reader: MemoryViewReader):
         for field in fields(self):
             setattr(self, field.name, self.readers[field.type](reader))
+
+    def execute(self, environment: avm2.MethodEnvironment):
+        raise NotImplementedError(self)
 
 
 T = TypeVar('T', bound=Instruction)
@@ -314,7 +316,8 @@ class GetLocal(Instruction):
 
 @instruction(208)
 class GetLocal1(Instruction):
-    pass
+    def execute(self, environment: avm2.MethodEnvironment):
+        environment.operand_stack.append(environment.registers[1])
 
 
 @instruction(209)

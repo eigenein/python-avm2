@@ -23,24 +23,24 @@ class ABCFile:
     minor_version: int
     major_version: int
     constant_pool: ConstantPool
-    methods: Tuple[MethodInfo, ...]
-    metadata: Tuple[MetadataInfo, ...]
-    instances: Tuple[InstanceInfo, ...]
-    classes: Tuple[ClassInfo, ...]
-    scripts: Tuple[ScriptInfo, ...]
-    method_bodies: Tuple[MethodBodyInfo, ...]
+    methods: Tuple[Method, ...]
+    metadata: Tuple[Metadata, ...]
+    instances: Tuple[Instance, ...]
+    classes: Tuple[Class, ...]
+    scripts: Tuple[Script, ...]
+    method_bodies: Tuple[MethodBody, ...]
 
     def __init__(self, reader: MemoryViewReader):
         self.minor_version = reader.read_u16()
         self.major_version = reader.read_u16()
         self.constant_pool = ConstantPool(reader)
-        self.methods = read_array(reader, MethodInfo)
-        self.metadata = read_array(reader, MetadataInfo)
+        self.methods = read_array(reader, Method)
+        self.metadata = read_array(reader, Metadata)
         class_count = reader.read_int()
-        self.instances = read_array(reader, InstanceInfo, class_count)
-        self.classes = read_array(reader, ClassInfo, class_count)
-        self.scripts = read_array(reader, ScriptInfo)
-        self.method_bodies = read_array(reader, MethodBodyInfo)
+        self.instances = read_array(reader, Instance, class_count)
+        self.classes = read_array(reader, Class, class_count)
+        self.scripts = read_array(reader, Script)
+        self.method_bodies = read_array(reader, MethodBody)
 
 
 @dataclass
@@ -112,7 +112,7 @@ class Multiname:
 
 
 @dataclass
-class MethodInfo:
+class Method:
     param_count: int
     return_type: int
     param_types: Tuple[int, ...]
@@ -144,17 +144,17 @@ class OptionDetail:
 
 
 @dataclass
-class MetadataInfo:
+class Metadata:
     name: int
-    items: Tuple[ItemInfo, ...]
+    items: Tuple[Item, ...]
 
     def __init__(self, reader: MemoryViewReader):
         self.name = reader.read_int()
-        self.items = read_array(reader, ItemInfo)
+        self.items = read_array(reader, Item)
 
 
 @dataclass
-class ItemInfo:
+class Item:
     key: int
     value: int
 
@@ -164,13 +164,13 @@ class ItemInfo:
 
 
 @dataclass
-class InstanceInfo:
+class Instance:
     name: int
     super_name: int
     flags: ClassFlags
     interfaces: Tuple[int, ...]
     init_instance: int
-    traits: Tuple[TraitInfo, ...]
+    traits: Tuple[Trait, ...]
     protected_ns: Optional[int] = None
 
     def __init__(self, reader: MemoryViewReader):
@@ -181,11 +181,11 @@ class InstanceInfo:
             self.protected_ns = reader.read_int()
         self.interfaces = read_array(reader, MemoryViewReader.read_int)
         self.init_instance = reader.read_int()
-        self.traits = read_array(reader, TraitInfo)
+        self.traits = read_array(reader, Trait)
 
 
 @dataclass
-class TraitInfo:
+class Trait:
     name: int
     kind: TraitKind
     attributes: TraitAttributes
@@ -216,7 +216,7 @@ class TraitSlot:
     slot_id: int
     type_name: int
     vindex: int
-    vkind: ConstantKind
+    vkind: Optional[ConstantKind] = None
 
     def __init__(self, reader: MemoryViewReader):
         self.slot_id = reader.read_int()
@@ -257,27 +257,27 @@ class TraitMethod:
 
 
 @dataclass
-class ClassInfo:
+class Class:
     init_class: int
-    traits: Tuple[TraitInfo, ...]
+    traits: Tuple[Trait, ...]
 
     def __init__(self, reader: MemoryViewReader):
         self.init_class = reader.read_int()
-        self.traits = read_array(reader, TraitInfo)
+        self.traits = read_array(reader, Trait)
 
 
 @dataclass
-class ScriptInfo:
+class Script:
     init: int
-    traits: Tuple[TraitInfo, ...]
+    traits: Tuple[Trait, ...]
 
     def __init__(self, reader: MemoryViewReader):
         self.init = reader.read_int()
-        self.traits = read_array(reader, TraitInfo)
+        self.traits = read_array(reader, Trait)
 
 
 @dataclass
-class MethodBodyInfo:
+class MethodBody:
     method: int
     max_stack: int
     local_count: int
@@ -285,7 +285,7 @@ class MethodBodyInfo:
     max_scope_depth: int
     code: memoryview
     exceptions: Tuple[ExceptionInfo, ...]
-    traits: Tuple[TraitInfo, ...]
+    traits: Tuple[Trait, ...]
 
     def __init__(self, reader: MemoryViewReader):
         self.method = reader.read_int()
@@ -295,7 +295,7 @@ class MethodBodyInfo:
         self.max_scope_depth = reader.read_int()
         self.code = reader.read(reader.read_int())
         self.exceptions = read_array(reader, ExceptionInfo)
-        self.traits = read_array(reader, TraitInfo)
+        self.traits = read_array(reader, Trait)
 
 
 @dataclass

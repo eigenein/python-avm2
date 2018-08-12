@@ -1,7 +1,7 @@
-from typing import Tuple
+from typing import Tuple, Iterable
 
-from avm2.abc.instructions import Instruction, parse_code
-from avm2.abc.types import ABCFile, MethodBodyInfo
+from avm2.abc.instructions import Instruction, read_instruction
+from avm2.abc.types import ABCFile, MethodBody
 from avm2.io import MemoryViewReader
 from avm2.swf.parser import parse
 from avm2.swf.types import DoABCTag, TagType
@@ -35,5 +35,10 @@ def test_abc_file_2():
     assert len(parse_method_body(abc_file.method_bodies[2])) == 69
 
 
-def parse_method_body(method_body_info: MethodBodyInfo) -> Tuple[Instruction, ...]:
+def parse_method_body(method_body_info: MethodBody) -> Tuple[Instruction, ...]:
     return tuple(parse_code(MemoryViewReader(method_body_info.code)))
+
+
+def parse_code(reader: MemoryViewReader) -> Iterable[Instruction]:
+    while not reader.is_eof():
+        yield read_instruction(reader)

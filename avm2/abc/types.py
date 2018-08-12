@@ -5,7 +5,15 @@ from dataclasses import dataclass
 from functools import partial
 from typing import Optional, Tuple, Union
 
-from avm2.abc.enums import MultinameKind, NamespaceKind, MethodFlags, ConstantKind, ClassFlags, TraitKind, TraitAttributes
+from avm2.abc.enums import (
+    ClassFlags,
+    ConstantKind,
+    MethodFlags,
+    MultinameKind,
+    NamespaceKind,
+    TraitAttributes,
+    TraitKind,
+)
 from avm2.abc.parser import read_array, read_array_with_default, read_string
 from avm2.io import MemoryViewReader
 

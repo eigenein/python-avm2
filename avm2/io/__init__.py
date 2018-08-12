@@ -3,6 +3,7 @@ from struct import Struct
 from typing import Union
 
 D64 = Struct('<d')
+UI32 = Struct('<i')
 
 
 class MemoryViewReader:
@@ -123,3 +124,7 @@ class MemoryViewReader:
         # noinspection PyTypeChecker
         value, = D64.unpack(self.read(8))  # type: float
         return value
+
+    def read_s24(self) -> int:
+        value, = UI32.unpack(self.read(3).tobytes() + b'\x00')
+        return self.extend_sign(value, 0x00800000)

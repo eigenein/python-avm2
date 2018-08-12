@@ -33,6 +33,14 @@ def test_memory_view_reader_read_u32():
     assert MemoryViewReader(memoryview(b'\x0D\x0C\x0B\x0A')).read_u32() == 0x0A0B0C0D
 
 
+@pytest.mark.parametrize('bytes_, expected', [
+    (b'\x0C\x0B\x0A', 0x0A0B0C),
+    (b'\xFF\xFF\xFF', -1),
+])
+def test_memory_view_reader_read_s24(bytes_: bytes, expected: int):
+    assert MemoryViewReader(memoryview(bytes_)).read_s24() == expected
+
+
 def test_memory_view_reader_read_until():
     reader = MemoryViewReader(memoryview(b'ABCDE'))
     reader.skip(1)

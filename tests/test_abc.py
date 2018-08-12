@@ -1,4 +1,5 @@
 from avm2.abc.types import ABCFile
+from avm2.io import MemoryViewReader
 from avm2.swf.parser import parse
 from avm2.swf.types import DoABCTag, TagType
 from tests.utils import SWF_2
@@ -7,7 +8,8 @@ from tests.utils import SWF_2
 def test_abc_file_2():
     tag, = (tag for tag in parse(SWF_2) if tag.type_ == TagType.DO_ABC)
     do_abc_tag = DoABCTag(tag.raw)
-    abc_file = ABCFile(do_abc_tag.abc_file)
+    reader = MemoryViewReader(do_abc_tag.abc_file)
+    abc_file = ABCFile(reader)
     assert abc_file.major_version == 46
     assert abc_file.minor_version == 16
     assert len(abc_file.constant_pool.integers) == 463
@@ -20,3 +22,7 @@ def test_abc_file_2():
     assert len(abc_file.methods) == 35243
     assert len(abc_file.metadata) == 196
     assert len(abc_file.instances) == 3739
+    assert len(abc_file.classes) == 3739
+    assert len(abc_file.scripts) == 3720
+    assert len(abc_file.method_bodies) == 34687
+    assert reader.is_eof()

@@ -18,9 +18,11 @@ class ABCFile:
     methods: Tuple[MethodInfo, ...]
     metadata: Tuple[MetadataInfo, ...]
     instances: Tuple[InstanceInfo, ...]
+    classes: Tuple[ClassInfo, ...]
+    scripts: Tuple[ScriptInfo, ...]
+    method_bodies: Tuple[MethodBodyInfo, ...]
 
-    def __init__(self, raw: memoryview):
-        reader = MemoryViewReader(raw)
+    def __init__(self, reader: MemoryViewReader):
         self.minor_version = reader.read_u16()
         self.major_version = reader.read_u16()
         self.constant_pool = ConstantPool(reader)
@@ -28,6 +30,9 @@ class ABCFile:
         self.metadata = read_array(reader, MetadataInfo)
         class_count = reader.read_int()
         self.instances = read_array(reader, InstanceInfo, class_count)
+        self.classes = read_array(reader, ClassInfo, class_count)
+        self.scripts = read_array(reader, ScriptInfo)
+        self.method_bodies = read_array(reader, MethodBodyInfo)
 
 
 @dataclass
@@ -156,7 +161,7 @@ class InstanceInfo:
     super_name: int
     flags: ClassFlags
     interfaces: Tuple[int, ...]
-    iinit: int
+    init_instance: int
     traits: Tuple[TraitInfo, ...]
     protected_ns: Optional[int] = None
 
@@ -167,7 +172,7 @@ class InstanceInfo:
         if ClassFlags.PROTECTED_NS in self.flags:
             self.protected_ns = reader.read_int()
         self.interfaces = read_array(reader, MemoryViewReader.read_int)
-        self.iinit = reader.read_int()
+        self.init_instance = reader.read_int()
         self.traits = read_array(reader, TraitInfo)
 
 
@@ -241,3 +246,61 @@ class TraitMethod:
     def __init__(self, reader: MemoryViewReader):
         self.disposition_id = reader.read_int()
         self.method = reader.read_int()
+
+
+@dataclass
+class ClassInfo:
+    init_class: int
+    traits: Tuple[TraitInfo, ...]
+
+    def __init__(self, reader: MemoryViewReader):
+        self.init_class = reader.read_int()
+        self.traits = read_array(reader, TraitInfo)
+
+
+@dataclass
+class ScriptInfo:
+    init: int
+    traits: Tuple[TraitInfo, ...]
+
+    def __init__(self, reader: MemoryViewReader):
+        self.init = reader.read_int()
+        self.traits = read_array(reader, TraitInfo)
+
+
+@dataclass
+class MethodBodyInfo:
+    method: int
+    max_stack: int
+    local_count: int
+    init_scope_depth: int
+    max_scope_depth: int
+    code: memoryview
+    exceptions: Tuple[ExceptionInfo, ...]
+    traits: Tuple[TraitInfo, ...]
+
+    def __init__(self, reader: MemoryViewReader):
+        self.method = reader.read_int()
+        self.max_stack = reader.read_int()
+        self.local_count = reader.read_int()
+        self.init_scope_depth = reader.read_int()
+        self.max_scope_depth = reader.read_int()
+        self.code = reader.read(reader.read_int())
+        self.exceptions = read_array(reader, ExceptionInfo)
+        self.traits = read_array(reader, TraitInfo)
+
+
+@dataclass
+class ExceptionInfo:
+    from_: int
+    to: int
+    target: int
+    exc_type: int
+    var_name: int
+
+    def __init__(self, reader: MemoryViewReader):
+        self.from_ = reader.read_int()
+        self.to = reader.read_int()
+        self.target = reader.read_int()
+        self.exc_type = reader.read_int()
+        self.var_name = reader.read_int()

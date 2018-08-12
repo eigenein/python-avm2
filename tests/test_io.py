@@ -56,3 +56,14 @@ def test_memory_view_reader_read_string():
 ])
 def test_memory_view_reader_read_int(bytes_: bytes, unsigned: bool, value: int):
     assert MemoryViewReader(bytes_).read_int(unsigned) == value
+
+
+def test_is_eof():
+    reader = MemoryViewReader(memoryview(b'ABCDE'))
+    assert not reader.is_eof()
+    reader.read(4)
+    assert not reader.is_eof()
+    reader.read(2)
+    assert reader.is_eof()
+    reader.skip(42)
+    assert reader.is_eof()

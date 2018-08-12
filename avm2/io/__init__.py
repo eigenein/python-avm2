@@ -17,6 +17,9 @@ class MemoryViewReader:
     def __repr__(self) -> str:
         return f'MemoryViewReader(buffer={self.buffer!r}, position={self.position!r})'
 
+    def is_eof(self) -> bool:
+        return self.position >= len(self.buffer)
+
     def read(self, size: int) -> memoryview:
         """
         Read the number of bytes.

@@ -45,7 +45,7 @@ def read_tags(reader: MemoryViewReader) -> Iterable[Tag]:
     """
     Read tags from the stream and get an iterable of tags.
     """
-    while True:
+    while not reader.is_eof():
         code_length = reader.read_u16()
         length = code_length & 0b111111
         if length == 0x3F:
@@ -58,5 +58,3 @@ def read_tags(reader: MemoryViewReader) -> Iterable[Tag]:
             reader.skip(length)
         else:
             yield Tag(type_=type_, raw=reader.read(length))
-            if type_ == TagType.END:
-                break

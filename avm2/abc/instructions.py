@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, fields
-from typing import Any, Callable, ClassVar, Dict, Tuple, Type, TypeVar, NewType
+from typing import Any, Callable, ClassVar, Dict, Tuple, Type, TypeVar, NewType, Optional
 
 import avm2.vm
 from avm2.runtime import undefined
@@ -33,7 +33,7 @@ class Instruction:
         for field in fields(self):
             setattr(self, field.name, self.readers[field.type](reader))
 
-    def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
+    def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment) -> Optional[int]:
         raise NotImplementedError(self)
 
 
@@ -250,7 +250,16 @@ class DeleteProperty(Instruction):
 
 @instruction(163)
 class Divide(Instruction):
-    pass
+    """
+    Pop `value1` and `value2` off of the stack, convert `value1` and `value2` to `Number` to create
+    `value1_number` and `value2_number`. Divide `value1_number` by `value2_number` and push the
+    result onto the stack.
+    """
+
+    def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
+        value_2 = environment.operand_stack.pop()
+        value_1 = environment.operand_stack.pop()
+        environment.operand_stack.append(value_1 / value_2)
 
 
 @instruction(42)
@@ -343,17 +352,20 @@ class GetLocal0(Instruction):
 
 @instruction(209)
 class GetLocal1(Instruction):
-    pass
+    def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
+        environment.operand_stack.append(environment.registers[1])
 
 
 @instruction(210)
 class GetLocal2(Instruction):
-    pass
+    def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
+        environment.operand_stack.append(environment.registers[2])
 
 
 @instruction(211)
 class GetLocal3(Instruction):
-    pass
+    def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
+        environment.operand_stack.append(environment.registers[3])
 
 
 @instruction(102)
@@ -454,7 +466,25 @@ class IfNLE(Instruction):
 
 @instruction(12)
 class IfNLT(Instruction):
+    """
+    Compute `value1 < value2` using the abstract relational comparison algorithm in ECMA-262
+    section 11.8.5. If the result of the comparison is false, then jump the number of bytes
+    indicated by `offset`. Otherwise continue executing code from this point.
+
+    This appears to have the same effect as `ifge`, however, their handling of `NaN` is different. If
+    either of the compared values is `NaN` then the comparison `value1 < value2` will return
+    `undefined`. In that case `ifnlt` will branch (`undefined` is not true), but `ifge` will not
+    branch.
+    """
+
     offset: s24
+
+    def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
+        value_2 = environment.operand_stack.pop()
+        value_1 = environment.operand_stack.pop()
+        # FIXME: NaN.
+        if value_1 < value_2:
+            return self.offset
 
 
 @instruction(20)
@@ -653,6 +683,9 @@ class PopScope(Instruction):
 class PushByte(Instruction):
     byte_value: u8
 
+    def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
+        environment.operand_stack.append(self.byte_value)
+
 
 @instruction(47)
 class PushDouble(Instruction):
@@ -666,7 +699,15 @@ class PushFalse(Instruction):
 
 @instruction(45)
 class PushInteger(Instruction):
+    """
+    `index` is a `u30` that must be an index into the integer constant pool. The int value at `index` in
+    the integer constant pool is pushed onto the stack.
+    """
+
     index: u30
+
+    def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
+        environment.operand_stack.append(machine.integers[self.index])
 
 
 @instruction(49)

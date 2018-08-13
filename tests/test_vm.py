@@ -1,5 +1,6 @@
 from avm2.vm import VirtualMachine, execute_do_abc_tag, execute_tag
 from avm2.swf.types import DoABCTag, Tag
+from avm2.abc.types import ABCMethodIndex
 
 
 def test_execute_tag(raw_do_abc_tag: Tag):
@@ -17,3 +18,7 @@ def test_lookup_class(machine: VirtualMachine):
 
 def test_lookup_method(machine: VirtualMachine):
     assert machine.lookup_method('battle.BattleCore.getElementalPenetration') == 24363
+
+
+def test_execute_method(machine: VirtualMachine):
+    machine.execute_method(ABCMethodIndex(24363), ..., 2, 30000)

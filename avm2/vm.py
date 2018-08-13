@@ -19,6 +19,7 @@ class VirtualMachine:
         self.constant_pool = abc_file.constant_pool
         self.strings = self.constant_pool.strings
         self.multinames = self.constant_pool.multinames
+        self.integers = self.constant_pool.integers
 
         # Linking.
         self.method_to_body = self.link_method_bodies()
@@ -77,19 +78,19 @@ class VirtualMachine:
         """
         self.execute_method(script.init, this=...)  # FIXME: what is `this`? Looks like a scope.
 
-    def execute_method(self, index: int, *, this: Any, arguments: Iterable[Any] = ()):
+    def execute_method(self, index: ABCMethodIndex, this: Any, *args):
         """
         Execute the specified method.
         """
-        self.execute_method_body(self.method_to_body[index], this=this, arguments=arguments)
+        self.execute_method_body(self.method_to_body[index], this, *args)
 
-    def execute_method_body(self, index: int, *, this: Any, arguments: Iterable[Any] = ()):
+    def execute_method_body(self, index: ABCMethodBodyIndex, this: Any, *args):
         """
         Execute the method body.
         """
         method_body: ASMethodBody = self.abc_file.method_bodies[index]
         method: ASMethod = self.abc_file.methods[method_body.method]
-        environment = self.create_method_environment(method, method_body, this, arguments)
+        environment = self.create_method_environment(method, method_body, this, *args)
         self.execute_code(method_body.code, environment)
 
     def execute_code(self, code: memoryview, environment: MethodEnvironment):
@@ -99,38 +100,38 @@ class VirtualMachine:
         reader = MemoryViewReader(code)
         while True:
             # FIXME: cache already read instructions.
-            avm2.abc.instructions.read_instruction(reader).execute(self, environment)
+            offset = avm2.abc.instructions.read_instruction(reader).execute(self, environment) or 0
+            reader.position += offset
 
     # Unclassified.
     # ------------------------------------------------------------------------------------------------------------------
 
-    def create_method_environment(self, method: ASMethod, method_body: ASMethodBody, this: Any, arguments: Iterable[Any]) -> MethodEnvironment:
+    def create_method_environment(self, method: ASMethod, method_body: ASMethodBody, this: Any, *args) -> MethodEnvironment:
         """
         Create method execution environment: registers and stacks.
         """
-        arguments = list(arguments)
         # There are `method_body_info.local_count` registers.
         registers: List[Any] = [...] * method_body.local_count
         # Register 0 holds the "this" object. This value is never null.
         registers[0] = this
         # Registers 1 through `method_info.param_count` holds parameter values coerced to the declared types
         # of the parameters.
-        assert len(arguments) <= method.param_count
-        registers[1:len(arguments) + 1] = arguments
+        assert len(args) <= method.param_count
+        registers[1:len(args) + 1] = args
         # If fewer than `method_body_info.local_count` values are supplied to the call then the remaining values are
         # either the values provided by default value declarations (optional arguments) or the value `undefined`.
         assert not method.options or len(method.options) <= method.param_count
-        for i in range(len(arguments) + 1, method_body.local_count):
+        for i in range(len(args) + 1, method_body.local_count):
             registers[i] = self.get_optional_value(method.options[i - 1]) if i <= len(method.options) else undefined
         # If `NEED_REST` is set in `method_info.flags`, the `method_info.param_count + 1` register is set up to
         # reference an array that holds the superflous arguments.
         if MethodFlags.NEED_REST in method.flags:
-            registers[method.param_count + 1] = arguments[method.param_count:]
+            registers[method.param_count + 1] = args[method.param_count:]
         # If `NEED_ARGUMENTS` is set in `method_info.flags`, the `method_info.param_count + 1` register is set up
         # to reference an "arguments" object that holds all the actual arguments: see ECMA-262 for more
         # information.
         if MethodFlags.NEED_ARGUMENTS in method.flags:
-            registers[method.param_count + 1] = arguments
+            registers[method.param_count + 1] = args
         assert len(registers) == method_body.local_count
         return MethodEnvironment(registers=registers)
 

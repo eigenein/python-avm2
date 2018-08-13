@@ -108,7 +108,4 @@ def execute_do_abc_tag(do_abc_tag: DoABCTag) -> VirtualMachine:
     """
     Create a virtual machine and execute the tag.
     """
-    machine = VirtualMachine(ABCFile(MemoryViewReader(do_abc_tag.abc_file)))
-    if DoABCTagFlags.LAZY_INITIALIZE not in do_abc_tag.flags:
-        machine.execute_entry_point()
-    return machine
+    return VirtualMachine(ABCFile(MemoryViewReader(do_abc_tag.abc_file)))

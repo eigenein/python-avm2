@@ -10,5 +10,6 @@ def test_execute_do_abc_tag(do_abc_tag: DoABCTag):
     execute_do_abc_tag(do_abc_tag)
 
 
-def test_virtual_machine(machine: VirtualMachine):
-    assert 'battle.BattleCore' in machine.classes_by_name
+def test_lookup_class(machine: VirtualMachine):
+    assert machine.lookup_class('battle.BattleCore') == 2241
+    assert machine.lookup_class('game.battle.controller.BattleController') == 989

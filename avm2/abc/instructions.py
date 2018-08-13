@@ -49,6 +49,9 @@ def instruction(opcode: int) -> Callable[[], Type[T]]:
     return wrapper
 
 
+# Instructions implementation.
+# ----------------------------------------------------------------------------------------------------------------------
+
 @instruction(160)
 class Add(Instruction):
     pass

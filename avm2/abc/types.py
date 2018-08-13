@@ -22,6 +22,7 @@ ABCNamespaceIndex = NewType('ABCNamespaceIndex', int)
 ABCNamespaceSetIndex = NewType('ABCNamespaceSetIndex', int)
 ABCMultinameIndex = NewType('ABCMultinameIndex', int)
 ABCMethodIndex = NewType('ABCMethodIndex', int)
+ABCMethodBodyIndex = NewType('ABCMethodBodyIndex', int)
 ABCMetadataIndex = NewType('ABCMetadataIndex', int)
 ABCClassIndex = NewType('ABCClassIndex', int)
 

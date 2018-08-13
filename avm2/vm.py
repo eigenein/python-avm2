@@ -5,7 +5,7 @@ from typing import Any, Dict, Iterable, List, Tuple
 
 import avm2.abc.instructions
 from avm2.abc.enums import MethodFlags, MultinameKind
-from avm2.abc.types import ABCFile, ASMethod, ASMethodBody, ASOptionDetail, ASScript
+from avm2.abc.types import ABCFile, ABCClassIndex, ABCMethodIndex, ABCMethodBodyIndex, ASMethod, ASMethodBody, ASOptionDetail, ASScript
 from avm2.io import MemoryViewReader
 from avm2.runtime import undefined
 from avm2.swf.types import DoABCTag, Tag, TagType
@@ -16,22 +16,40 @@ class VirtualMachine:
         self.abc_file = abc_file
         self.constant_pool = abc_file.constant_pool
         self.strings = self.constant_pool.strings
-        self.bodies_by_method = self.link_method_bodies()
-        self.classes_by_name = dict(self.link_class_names())
+        self.method_to_body = self.link_method_bodies()
+        self.name_to_class = dict(self.link_class_names())
 
-    def link_method_bodies(self) -> Dict[int, int]:
+    # Linking.
+    # ------------------------------------------------------------------------------------------------------------------
+
+    def link_method_bodies(self) -> Dict[ABCMethodIndex, ABCMethodBodyIndex]:
+        """
+        Link methods and methods bodies.
+        """
         return {method_body.method: index for index, method_body in enumerate(self.abc_file.method_bodies)}
 
-    def link_class_names(self) -> Iterable[Tuple[str, int]]:
+    def link_class_names(self) -> Iterable[Tuple[str, ABCClassIndex]]:
+        """
+        Link class names and class indices.
+        """
         for index, instance in enumerate(self.abc_file.instances):
             assert instance.name
             multiname = self.abc_file.constant_pool.multinames[instance.name]
-            assert multiname.kind == MultinameKind.Q_NAME
+            assert multiname.kind == MultinameKind.Q_NAME, multiname.kind
             assert multiname.ns
             namespace = self.constant_pool.namespaces[multiname.ns]
             assert namespace.name
             assert multiname.name
             yield f'{self.strings[namespace.name]}.{self.strings[multiname.name]}', index
+
+    # Lookups.
+    # ------------------------------------------------------------------------------------------------------------------
+
+    def lookup_class(self, qualified_name: str) -> ABCClassIndex:
+        return self.name_to_class[qualified_name]
+
+    # Execution.
+    # ------------------------------------------------------------------------------------------------------------------
 
     def execute_entry_point(self):
         """
@@ -49,7 +67,7 @@ class VirtualMachine:
         """
         Execute the specified method.
         """
-        self.execute_method_body(self.bodies_by_method[index], this=this, arguments=arguments)
+        self.execute_method_body(self.method_to_body[index], this=this, arguments=arguments)
 
     def execute_method_body(self, index: int, *, this: Any, arguments: Iterable[Any] = ()):
         """
@@ -59,6 +77,18 @@ class VirtualMachine:
         method: ASMethod = self.abc_file.methods[method_body.method]
         environment = self.create_method_environment(method, method_body, this, arguments)
         self.execute_code(method_body.code, environment)
+
+    def execute_code(self, code: memoryview, environment: MethodEnvironment):
+        """
+        Execute the byte-code.
+        """
+        reader = MemoryViewReader(code)
+        while True:
+            # FIXME: cache already read instructions.
+            avm2.abc.instructions.read_instruction(reader).execute(self, environment)
+
+    # Unclassified.
+    # ------------------------------------------------------------------------------------------------------------------
 
     def create_method_environment(self, method: ASMethod, method_body: ASMethodBody, this: Any, arguments: Iterable[Any]) -> MethodEnvironment:
         """
@@ -95,15 +125,6 @@ class VirtualMachine:
         Get actual optional value.
         """
         raise NotImplementedError('get_optional_value')
-
-    def execute_code(self, code: memoryview, environment: MethodEnvironment):
-        """
-        Execute the byte-code.
-        """
-        reader = MemoryViewReader(code)
-        while True:
-            # FIXME: cache already read instructions.
-            avm2.abc.instructions.read_instruction(reader).execute(self, environment)
 
 
 @dataclass

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, fields
-from typing import Any, Callable, ClassVar, Dict, Tuple, Type, TypeVar
+from typing import Any, Callable, ClassVar, Dict, Tuple, Type, TypeVar, NewType
 
 import avm2
 from avm2.abc.parser import read_array
@@ -13,19 +13,19 @@ def read_instruction(reader: MemoryViewReader) -> Instruction:
     return opcode_to_instruction[reader.read_u8()](reader)
 
 
-u8 = int
-u30 = int
-uint = int
-s24 = int
+u8 = NewType('u8', int)
+u30 = NewType('u30', int)
+uint = NewType('uint', int)
+s24 = NewType('s24', int)
 
 
 @dataclass
 class Instruction:
     readers: ClassVar[Dict[str, Callable[[MemoryViewReader], Any]]] = {
-        'u8': MemoryViewReader.read_u8,
-        'u30': MemoryViewReader.read_int,
-        'uint': MemoryViewReader.read_u32,
-        's24': MemoryViewReader.read_s24,
+        u8.__name__: MemoryViewReader.read_u8,
+        u30.__name__: MemoryViewReader.read_int,
+        uint.__name__: MemoryViewReader.read_u32,
+        s24.__name__: MemoryViewReader.read_s24,
     }
 
     def __init__(self, reader: MemoryViewReader):

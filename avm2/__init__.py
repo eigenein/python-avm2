@@ -5,7 +5,7 @@ from typing import Any, Dict, Iterable, List
 
 from avm2.abc.enums import MethodFlags
 from avm2.abc.instructions import read_instruction
-from avm2.abc.types import ABCFile, Method, MethodBody, Script, OptionDetail
+from avm2.abc.types import ABCFile, ASMethod, ASMethodBody, ASScript, ASOptionDetail
 from avm2.io import MemoryViewReader
 from avm2.swf.enums import DoABCTagFlags
 from avm2.swf.types import DoABCTag, Tag, TagType
@@ -22,7 +22,7 @@ class VirtualMachine:
         """
         self.execute_script(self.abc_file.scripts[-1])
 
-    def execute_script(self, script: Script):
+    def execute_script(self, script: ASScript):
         """
         Execute the specified script.
         """
@@ -38,12 +38,12 @@ class VirtualMachine:
         """
         Execute the method body.
         """
-        method_body: MethodBody = self.abc_file.method_bodies[index]
-        method: Method = self.abc_file.methods[method_body.method]
+        method_body: ASMethodBody = self.abc_file.method_bodies[index]
+        method: ASMethod = self.abc_file.methods[method_body.method]
         environment = self.create_method_environment(method, arguments)
         self.execute_code(method_body.code, environment)
 
-    def create_method_environment(self, method: Method, arguments: Iterable[Any]) -> MethodEnvironment:
+    def create_method_environment(self, method: ASMethod, arguments: Iterable[Any]) -> MethodEnvironment:
         """
         Create method execution environment: registers and stacks.
         """
@@ -59,7 +59,7 @@ class VirtualMachine:
             registers.extend(Undefined for _ in range(len(registers), method.param_count))
         return MethodEnvironment(registers=registers)
 
-    def get_optional_value(self, option: OptionDetail) -> Any:
+    def get_optional_value(self, option: ASOptionDetail) -> Any:
         """
         Get actual optional value.
         """

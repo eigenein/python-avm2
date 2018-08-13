@@ -4,33 +4,33 @@ from avm2.io import MemoryViewReader
 
 
 def test_memory_view_reader_read():
-    reader = MemoryViewReader(memoryview(b'abc'))
+    reader = MemoryViewReader(b'abc')
     assert reader.read(1) == b'a'
     assert reader.read(2) == b'bc'
     assert reader.read(1) == b''
 
 
 def test_memory_view_reader_skip():
-    assert MemoryViewReader(memoryview(b'abc')).skip(1) == 1
+    assert MemoryViewReader(b'abc').skip(1) == 1
 
 
 def test_memory_view_reader_read_all():
-    reader = MemoryViewReader(memoryview(b'abc'))
+    reader = MemoryViewReader(b'abc')
     reader.skip(1)
     assert reader.read_all() == b'bc'
     assert reader.read_all() == b''
 
 
 def test_memory_view_reader_read_u8():
-    assert MemoryViewReader(memoryview(b'\x0A')).read_u8() == 0x0A
+    assert MemoryViewReader(b'\x0A').read_u8() == 0x0A
 
 
 def test_memory_view_reader_read_u16():
-    assert MemoryViewReader(memoryview(b'WS')).read_u16() == 0x5357
+    assert MemoryViewReader(b'WS').read_u16() == 0x5357
 
 
 def test_memory_view_reader_read_u32():
-    assert MemoryViewReader(memoryview(b'\x0D\x0C\x0B\x0A')).read_u32() == 0x0A0B0C0D
+    assert MemoryViewReader(b'\x0D\x0C\x0B\x0A').read_u32() == 0x0A0B0C0D
 
 
 @pytest.mark.parametrize('bytes_, expected', [
@@ -38,18 +38,18 @@ def test_memory_view_reader_read_u32():
     (b'\xFF\xFF\xFF', -1),
 ])
 def test_memory_view_reader_read_s24(bytes_: bytes, expected: int):
-    assert MemoryViewReader(memoryview(bytes_)).read_s24() == expected
+    assert MemoryViewReader(bytes_).read_s24() == expected
 
 
 def test_memory_view_reader_read_until():
-    reader = MemoryViewReader(memoryview(b'ABCDE'))
+    reader = MemoryViewReader(b'ABCDE')
     reader.skip(1)
     assert reader.read_until(ord('D')) == b'BC'
     assert reader.position == 4
 
 
 def test_memory_view_reader_read_string():
-    assert MemoryViewReader(memoryview(b'AB\x00CD')).read_string() == 'AB'
+    assert MemoryViewReader(b'AB\x00CD').read_string() == 'AB'
 
 
 @pytest.mark.parametrize('bytes_, unsigned, value', [
@@ -67,7 +67,7 @@ def test_memory_view_reader_read_int(bytes_: bytes, unsigned: bool, value: int):
 
 
 def test_is_eof():
-    reader = MemoryViewReader(memoryview(b'ABCDE'))
+    reader = MemoryViewReader(b'ABCDE')
     assert not reader.is_eof()
     reader.read(4)
     assert not reader.is_eof()

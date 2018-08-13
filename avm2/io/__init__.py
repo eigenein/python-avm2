@@ -3,7 +3,8 @@ from struct import Struct
 from typing import Union
 
 D64 = Struct('<d')
-UI32 = Struct('<i')
+U16 = Struct('<H')
+U32 = Struct('<I')
 
 
 class MemoryViewReader:
@@ -25,21 +26,17 @@ class MemoryViewReader:
         """
         Read the number of bytes.
         """
-        return self.read_slice(slice(self.position, self.position + size))
+        value = self.buffer[self.position:self.position + size]
+        self.position += len(value)
+        return value
 
     def read_all(self) -> memoryview:
         """
         Read everything until the end.
         """
-        return self.read_slice(slice(self.position, None))
-
-    def read_slice(self, slice_: slice) -> memoryview:
-        """
-        Read the slice of wrapped data. To be used internally.
-        """
-        buffer: memoryview = self.buffer[slice_]
-        self.position += len(buffer)
-        return buffer
+        value = self.buffer[self.position:]
+        self.position += len(value)
+        return value
 
     def skip(self, size: int) -> int:
         """
@@ -60,13 +57,19 @@ class MemoryViewReader:
         """
         Read two-byte unsigned integer value.
         """
-        return self.read_u8() | (self.read_u8() << 8)
+        # noinspection PyTypeChecker
+        value, = U16.unpack(self.buffer[self.position:self.position + 2])
+        self.position += 2
+        return value
 
     def read_u32(self) -> int:
         """
         Read four-byte unsigned integer value.
         """
-        return self.read_u16() | (self.read_u16() << 16)
+        # noinspection PyTypeChecker
+        value, = U32.unpack(self.buffer[self.position:self.position + 4])
+        self.position += 4
+        return value
 
     def skip_rect(self):
         """
@@ -126,5 +129,5 @@ class MemoryViewReader:
         return value
 
     def read_s24(self) -> int:
-        value, = UI32.unpack(self.read(3).tobytes() + b'\x00')
+        value, = U32.unpack(self.read(3).tobytes() + b'\x00')
         return self.extend_sign(value, 0x00800000)

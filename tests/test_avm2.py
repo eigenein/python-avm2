@@ -1,4 +1,4 @@
-from avm2 import execute_do_abc_tag, execute_tag
+from avm2.vm import execute_do_abc_tag, execute_tag
 from avm2.swf.types import DoABCTag, Tag
 
 

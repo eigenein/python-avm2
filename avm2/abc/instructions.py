@@ -3,7 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, fields
 from typing import Any, Callable, ClassVar, Dict, Tuple, Type, TypeVar, NewType
 
-import avm2
+import avm2.vm
+from avm2.runtime import undefined
 from avm2.abc.parser import read_array
 from avm2.io import MemoryViewReader
 
@@ -17,8 +18,6 @@ u8 = NewType('u8', int)
 u30 = NewType('u30', int)
 uint = NewType('uint', int)
 s24 = NewType('s24', int)
-
-undefined = object()
 
 
 @dataclass
@@ -34,7 +33,7 @@ class Instruction:
         for field in fields(self):
             setattr(self, field.name, self.readers[field.type](reader))
 
-    def execute(self, environment: avm2.MethodEnvironment):
+    def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
         raise NotImplementedError(self)
 
 
@@ -335,7 +334,7 @@ class GetLocal0(Instruction):
     `<n>` is the index of a local register. The value of that register is pushed onto the stack.
     """
 
-    def execute(self, environment: avm2.MethodEnvironment):
+    def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
         environment.operand_stack.append(environment.registers[0])
 
 
@@ -370,7 +369,7 @@ class GetScopeObject(Instruction):
 
     index: u8
 
-    def execute(self, environment: avm2.MethodEnvironment):
+    def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
         environment.operand_stack.append(environment.scope_stack[self.index])
 
 
@@ -684,7 +683,7 @@ class PushNull(Instruction):
 
 @instruction(48)
 class PushScope(Instruction):
-    def execute(self, environment: avm2.MethodEnvironment):
+    def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
         value = environment.operand_stack.pop()
         assert value is not None and value is not undefined
         environment.scope_stack.append(value)

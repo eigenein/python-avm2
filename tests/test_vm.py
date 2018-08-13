@@ -11,4 +11,4 @@ def test_execute_do_abc_tag(do_abc_tag: DoABCTag):
 
 
 def test_virtual_machine(machine: VirtualMachine):
-    assert 'StandAlone.BattleCore' in machine.classes_by_name  # TODO: this seems wrong.
+    assert 'battle.BattleCore' in machine.classes_by_name

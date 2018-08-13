@@ -9,7 +9,7 @@ from avm2.swf.enums import Signature
 from avm2.swf.types import Tag, TagType
 
 
-def parse(input_: Union[memoryview, bytes]) -> Iterable[Tag]:
+def parse_swf(input_: Union[memoryview, bytes]) -> Iterable[Tag]:
     """
     Parse SWF file and get an iterable of its tags.
     """

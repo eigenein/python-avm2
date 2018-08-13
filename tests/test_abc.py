@@ -1,18 +1,11 @@
-from typing import Tuple, Iterable
+from typing import Iterable, List
 
 from avm2.abc.instructions import Instruction, read_instruction
 from avm2.abc.types import ABCFile, ASMethodBody
 from avm2.io import MemoryViewReader
-from avm2.swf.parser import parse
-from avm2.swf.types import DoABCTag, TagType
-from tests.utils import SWF_2
 
 
-def test_abc_file_2():
-    tag, = (tag for tag in parse(SWF_2) if tag.type_ == TagType.DO_ABC)
-    do_abc_tag = DoABCTag(tag.raw)
-    reader = MemoryViewReader(do_abc_tag.abc_file)
-    abc_file = ABCFile(reader)
+def test_abc_file(abc_file: ABCFile):
     assert abc_file.major_version == 46
     assert abc_file.minor_version == 16
     assert len(abc_file.constant_pool.integers) == 463
@@ -28,17 +21,16 @@ def test_abc_file_2():
     assert len(abc_file.classes) == 3739
     assert len(abc_file.scripts) == 3720
     assert len(abc_file.method_bodies) == 34687
-    assert reader.is_eof()
 
-    assert len(parse_method_body(abc_file.method_bodies[0])) == 103
-    assert len(parse_method_body(abc_file.method_bodies[1])) == 69
-    assert len(parse_method_body(abc_file.method_bodies[2])) == 69
-
-
-def parse_method_body(method_body_info: ASMethodBody) -> Tuple[Instruction, ...]:
-    return tuple(parse_code(MemoryViewReader(method_body_info.code)))
+    assert len(read_method_body(abc_file.method_bodies[0])) == 103
+    assert len(read_method_body(abc_file.method_bodies[1])) == 69
+    assert len(read_method_body(abc_file.method_bodies[2])) == 69
 
 
-def parse_code(reader: MemoryViewReader) -> Iterable[Instruction]:
+def read_method_body(method_body: ASMethodBody) -> List[Instruction]:
+    return list(read_instructions(MemoryViewReader(method_body.code)))
+
+
+def read_instructions(reader: MemoryViewReader) -> Iterable[Instruction]:
     while not reader.is_eof():
         yield read_instruction(reader)

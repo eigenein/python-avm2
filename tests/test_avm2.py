@@ -1,10 +1,10 @@
-from avm2 import execute_tag
-from avm2.swf.parser import parse
-from avm2.swf.types import TagType
-from tests.utils import SWF_2
+from avm2 import execute_do_abc_tag, execute_tag
+from avm2.swf.types import DoABCTag, Tag
 
 
-def test_execute_abc_file():
-    for tag in parse(SWF_2):
-        if tag.type_ == TagType.DO_ABC:
-            execute_tag(tag).execute_entry_point()
+def test_execute_tag(raw_do_abc_tag: Tag):
+    execute_tag(raw_do_abc_tag)
+
+
+def test_execute_do_abc_tag(do_abc_tag: DoABCTag):
+    execute_do_abc_tag(do_abc_tag)

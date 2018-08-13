@@ -8,6 +8,7 @@ from avm2.io import MemoryViewReader
 from avm2.swf.enums import TagType
 from avm2.swf.parser import parse_swf
 from avm2.swf.types import DoABCTag, Tag
+from avm2.vm import VirtualMachine
 
 base_path = Path(tests.__file__).parent.parent / 'data'
 
@@ -51,3 +52,8 @@ def do_abc_tag(raw_do_abc_tag: Tag) -> DoABCTag:
 @fixture
 def abc_file(do_abc_tag: DoABCTag) -> ABCFile:
     return ABCFile(MemoryViewReader(do_abc_tag.abc_file))
+
+
+@fixture
+def machine(abc_file: ABCFile) -> VirtualMachine:
+    return VirtualMachine(abc_file)

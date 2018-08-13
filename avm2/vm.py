@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterable, List
+from typing import Any, Dict, Iterable, List, Tuple
 
 import avm2.abc.instructions
-from avm2.abc.enums import MethodFlags
-from avm2.abc.types import ABCFile, ASMethod, ASMethodBody, ASOptionDetail, ASScript
+from avm2.abc.enums import MethodFlags, MultinameKind
+from avm2.abc.types import ABCFile, ASMethod, ASMethodBody, ASMultiname, ASOptionDetail, ASScript
 from avm2.io import MemoryViewReader
 from avm2.swf.types import DoABCTag, Tag, TagType
 from avm2.runtime import undefined
@@ -14,7 +14,21 @@ from avm2.runtime import undefined
 class VirtualMachine:
     def __init__(self, abc_file: ABCFile):
         self.abc_file = abc_file
-        self.method_bodies: Dict[int, int] = {method_body.method: i for i, method_body in enumerate(abc_file.method_bodies)}
+        self.constant_pool = abc_file.constant_pool
+        self.bodies_by_method = self.link_method_bodies()
+        self.classes_by_name = dict(self.link_class_names())
+
+    def link_method_bodies(self) -> Dict[int, int]:
+        return {method_body.method: index for index, method_body in enumerate(self.abc_file.method_bodies)}
+
+    def link_class_names(self) -> Iterable[Tuple[str, int]]:
+        for index, instance in enumerate(self.abc_file.instances):
+            assert instance.name
+            multiname: ASMultiname = self.abc_file.constant_pool.multinames[instance.name]
+            assert multiname.kind == MultinameKind.Q_NAME
+            assert multiname.ns
+            assert multiname.name
+            yield f'{self.constant_pool.strings[multiname.ns]}.{self.constant_pool.strings[multiname.name]}', index
 
     def execute_entry_point(self):
         """
@@ -32,7 +46,7 @@ class VirtualMachine:
         """
         Execute the specified method.
         """
-        self.execute_method_body(self.method_bodies[index], this=this, arguments=arguments)
+        self.execute_method_body(self.bodies_by_method[index], this=this, arguments=arguments)
 
     def execute_method_body(self, index: int, *, this: Any, arguments: Iterable[Any] = ()):
         """

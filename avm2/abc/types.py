@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from functools import partial
-from typing import Optional, Tuple, Union
+from typing import Optional, List, Union, NewType
 
 from avm2.abc.enums import (
     ClassFlags,
@@ -17,18 +17,26 @@ from avm2.abc.enums import (
 from avm2.abc.parser import read_array, read_array_with_default, read_string
 from avm2.io import MemoryViewReader
 
+ABCStringIndex = NewType('ABCStringIndex', int)
+ABCNamespaceIndex = NewType('ABCNamespaceIndex', int)
+ABCNamespaceSetIndex = NewType('ABCNamespaceSetIndex', int)
+ABCMultinameIndex = NewType('ABCMultinameIndex', int)
+ABCMethodIndex = NewType('ABCMethodIndex', int)
+ABCMetadataIndex = NewType('ABCMetadataIndex', int)
+ABCClassIndex = NewType('ABCClassIndex', int)
+
 
 @dataclass
 class ABCFile:
     minor_version: int
     major_version: int
     constant_pool: ASConstantPool
-    methods: Tuple[ASMethod, ...]
-    metadata: Tuple[ASMetadata, ...]
-    instances: Tuple[ASInstance, ...]
-    classes: Tuple[ASClass, ...]
-    scripts: Tuple[ASScript, ...]
-    method_bodies: Tuple[ASMethodBody, ...]
+    methods: List[ASMethod]
+    metadata: List[ASMetadata]
+    instances: List[ASInstance]
+    classes: List[ASClass]
+    scripts: List[ASScript]
+    method_bodies: List[ASMethodBody]
 
     def __init__(self, reader: MemoryViewReader):
         self.minor_version = reader.read_u16()
@@ -45,13 +53,13 @@ class ABCFile:
 
 @dataclass
 class ASConstantPool:
-    integers: Tuple[int, ...]
-    unsigned_integers: Tuple[int, ...]
-    doubles: Tuple[float, ...]
-    strings: Tuple[str, ...]
-    namespaces: Tuple[ASNamespace, ...]
-    ns_sets: Tuple[ASNamespaceSet, ...]
-    multinames: Tuple[ASMultiname, ...]
+    integers: List[int]
+    unsigned_integers: List[int]
+    doubles: List[float]
+    strings: List[str]
+    namespaces: List[ASNamespace]
+    ns_sets: List[ASNamespaceSet]
+    multinames: List[ASMultiname]
 
     def __init__(self, reader: MemoryViewReader):
         self.integers = read_array_with_default(reader, partial(MemoryViewReader.read_int, unsigned=False), 0)
@@ -66,7 +74,7 @@ class ASConstantPool:
 @dataclass
 class ASNamespace:
     kind: NamespaceKind
-    name: int
+    name: ABCStringIndex
 
     def __init__(self, reader: MemoryViewReader):
         self.kind = NamespaceKind(reader.read_u8())
@@ -75,7 +83,7 @@ class ASNamespace:
 
 @dataclass
 class ASNamespaceSet:
-    namespaces: Tuple[int, ...]
+    namespaces: List[ABCNamespaceIndex]
 
     def __init__(self, reader: MemoryViewReader):
         self.namespaces = read_array(reader, MemoryViewReader.read_int)
@@ -84,11 +92,11 @@ class ASNamespaceSet:
 @dataclass
 class ASMultiname:
     kind: MultinameKind
-    ns: Optional[int] = None
-    name: Optional[int] = None
-    ns_set: Optional[int] = None
-    q_name: Optional[int] = None
-    types: Optional[Tuple[int, ...]] = None
+    ns: Optional[ABCNamespaceIndex] = None
+    name: Optional[ABCStringIndex] = None
+    ns_set: Optional[ABCNamespaceSetIndex] = None
+    q_name: Optional[ABCMultinameIndex] = None
+    types: Optional[List[ABCMultinameIndex]] = None
 
     def __init__(self, reader: MemoryViewReader):
         self.kind = MultinameKind(reader.read_u8())
@@ -114,12 +122,12 @@ class ASMultiname:
 @dataclass
 class ASMethod:
     param_count: int
-    return_type: int
-    param_types: Tuple[int, ...]
-    name: int
+    return_type: ABCMultinameIndex
+    param_types: List[ABCMultinameIndex]
+    name: ABCStringIndex
     flags: MethodFlags
-    options: Optional[Tuple[ASOptionDetail, ...]] = None
-    param_names: Optional[Tuple[int, ...]] = None
+    options: Optional[List[ASOptionDetail]] = None
+    param_names: Optional[List[ABCStringIndex]] = None
 
     def __init__(self, reader: MemoryViewReader):
         self.param_count = reader.read_int()
@@ -135,18 +143,18 @@ class ASMethod:
 
 @dataclass
 class ASOptionDetail:
-    val: int
+    value: int
     kind: ConstantKind
 
     def __init__(self, reader: MemoryViewReader):
-        self.val = reader.read_int()
+        self.value = reader.read_int()
         self.kind = ConstantKind(reader.read_u8())
 
 
 @dataclass
 class ASMetadata:
-    name: int
-    items: Tuple[ASItem, ...]
+    name: ABCStringIndex
+    items: List[ASItem]
 
     def __init__(self, reader: MemoryViewReader):
         self.name = reader.read_int()
@@ -155,8 +163,8 @@ class ASMetadata:
 
 @dataclass
 class ASItem:
-    key: int
-    value: int
+    key: ABCStringIndex
+    value: ABCStringIndex
 
     def __init__(self, reader: MemoryViewReader):
         self.key = reader.read_int()
@@ -165,13 +173,13 @@ class ASItem:
 
 @dataclass
 class ASInstance:
-    name: int
-    super_name: int
+    name: ABCMultinameIndex
+    super_name: ABCMultinameIndex
     flags: ClassFlags
-    interfaces: Tuple[int, ...]
-    init_instance: int
-    traits: Tuple[ASTrait, ...]
-    protected_ns: Optional[int] = None
+    interfaces: List[ABCMultinameIndex]
+    init: ABCMethodIndex
+    traits: List[ASTrait]
+    protected_ns: Optional[ABCNamespaceIndex] = None
 
     def __init__(self, reader: MemoryViewReader):
         self.name = reader.read_int()
@@ -180,17 +188,17 @@ class ASInstance:
         if ClassFlags.PROTECTED_NS in self.flags:
             self.protected_ns = reader.read_int()
         self.interfaces = read_array(reader, MemoryViewReader.read_int)
-        self.init_instance = reader.read_int()
+        self.init = reader.read_int()
         self.traits = read_array(reader, ASTrait)
 
 
 @dataclass
 class ASTrait:
-    name: int
+    name: ABCMultinameIndex
     kind: TraitKind
     attributes: TraitAttributes
     data: Union[ASTraitSlot, ASTraitClass, ASTraitFunction, ASTraitMethod]
-    metadata: Optional[Tuple[int, ...]] = None
+    metadata: Optional[List[ABCMetadataIndex]] = None
 
     def __init__(self, reader: MemoryViewReader):
         self.name = reader.read_int()
@@ -214,7 +222,7 @@ class ASTrait:
 @dataclass
 class ASTraitSlot:
     slot_id: int
-    type_name: int
+    type_name: ABCMultinameIndex
     vindex: int
     vkind: Optional[ConstantKind] = None
 
@@ -229,7 +237,7 @@ class ASTraitSlot:
 @dataclass
 class ASTraitClass:
     slot_id: int
-    class_: int
+    class_: ABCClassIndex
 
     def __init__(self, reader: MemoryViewReader):
         self.slot_id = reader.read_int()
@@ -239,7 +247,7 @@ class ASTraitClass:
 @dataclass
 class ASTraitFunction:
     slot_id: int
-    function_: int
+    function_: ABCMethodIndex
 
     def __init__(self, reader: MemoryViewReader):
         self.slot_id = reader.read_int()
@@ -249,7 +257,7 @@ class ASTraitFunction:
 @dataclass
 class ASTraitMethod:
     disposition_id: int
-    method: int
+    method: ABCMethodIndex
 
     def __init__(self, reader: MemoryViewReader):
         self.disposition_id = reader.read_int()
@@ -259,7 +267,7 @@ class ASTraitMethod:
 @dataclass
 class ASClass:
     init_class: int
-    traits: Tuple[ASTrait, ...]
+    traits: List[ASTrait]
 
     def __init__(self, reader: MemoryViewReader):
         self.init_class = reader.read_int()
@@ -268,8 +276,8 @@ class ASClass:
 
 @dataclass
 class ASScript:
-    init: int
-    traits: Tuple[ASTrait, ...]
+    init: ABCMethodIndex
+    traits: List[ASTrait]
 
     def __init__(self, reader: MemoryViewReader):
         self.init = reader.read_int()
@@ -278,14 +286,14 @@ class ASScript:
 
 @dataclass
 class ASMethodBody:
-    method: int
+    method: ABCMethodIndex
     max_stack: int
     local_count: int
     init_scope_depth: int
     max_scope_depth: int
     code: memoryview
-    exceptions: Tuple[ASException, ...]
-    traits: Tuple[ASTrait, ...]
+    exceptions: List[ASException]
+    traits: List[ASTrait]
 
     def __init__(self, reader: MemoryViewReader):
         self.method = reader.read_int()
@@ -303,8 +311,8 @@ class ASException:
     from_: int
     to: int
     target: int
-    exc_type: int
-    var_name: int
+    exc_type: ABCStringIndex
+    var_name: ABCStringIndex
 
     def __init__(self, reader: MemoryViewReader):
         self.from_ = reader.read_int()

@@ -24,7 +24,7 @@ class VirtualMachine:
     def link_class_names(self) -> Iterable[Tuple[str, int]]:
         for index, instance in enumerate(self.abc_file.instances):
             assert instance.name
-            multiname: ASMultiname = self.abc_file.constant_pool.multinames[instance.name]
+            multiname = self.abc_file.constant_pool.multinames[instance.name]
             assert multiname.kind == MultinameKind.Q_NAME
             assert multiname.ns
             assert multiname.name

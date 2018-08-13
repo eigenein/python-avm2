@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Tuple
 
 import avm2.abc.instructions
-from avm2.abc.enums import MethodFlags, MultinameKind
+from avm2.abc.enums import MethodFlags, TraitKind
 from avm2.abc.types import ABCFile, ABCClassIndex, ABCMethodIndex, ABCMethodBodyIndex, ASMethod, ASMethodBody, ASOptionDetail, ASScript
 from avm2.io import MemoryViewReader
 from avm2.runtime import undefined
@@ -14,10 +14,16 @@ from avm2.swf.types import DoABCTag, Tag, TagType
 class VirtualMachine:
     def __init__(self, abc_file: ABCFile):
         self.abc_file = abc_file
+
+        # Quick access.
         self.constant_pool = abc_file.constant_pool
         self.strings = self.constant_pool.strings
+        self.multinames = self.constant_pool.multinames
+
+        # Linking.
         self.method_to_body = self.link_method_bodies()
         self.name_to_class = dict(self.link_class_names())
+        self.name_to_method = dict(self.link_method_names())
 
     # Linking.
     # ------------------------------------------------------------------------------------------------------------------
@@ -34,19 +40,27 @@ class VirtualMachine:
         """
         for index, instance in enumerate(self.abc_file.instances):
             assert instance.name
-            multiname = self.abc_file.constant_pool.multinames[instance.name]
-            assert multiname.kind == MultinameKind.Q_NAME, multiname.kind
-            assert multiname.ns
-            namespace = self.constant_pool.namespaces[multiname.ns]
-            assert namespace.name
-            assert multiname.name
-            yield f'{self.strings[namespace.name]}.{self.strings[multiname.name]}', index
+            yield self.multinames[instance.name].qualified_name(self.constant_pool), index
+
+    def link_method_names(self) -> Iterable[Tuple[str, ABCMethodIndex]]:
+        """
+        Link method names and method indices.
+        """
+        for instance, class_ in zip(self.abc_file.instances, self.abc_file.classes):
+            qualified_class_name = self.multinames[instance.name].qualified_name(self.constant_pool)
+            for trait in class_.traits:
+                if trait.kind in (TraitKind.GETTER, TraitKind.SETTER, TraitKind.METHOD):
+                    qualified_trait_name = self.multinames[trait.name].qualified_name(self.constant_pool)
+                    yield f'{qualified_class_name}.{qualified_trait_name}', trait.data.method
 
     # Lookups.
     # ------------------------------------------------------------------------------------------------------------------
 
     def lookup_class(self, qualified_name: str) -> ABCClassIndex:
         return self.name_to_class[qualified_name]
+
+    def lookup_method(self, qualified_name: str) -> ABCMethodIndex:
+        return self.name_to_method[qualified_name]
 
     # Execution.
     # ------------------------------------------------------------------------------------------------------------------

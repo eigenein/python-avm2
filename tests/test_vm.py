@@ -13,3 +13,7 @@ def test_execute_do_abc_tag(do_abc_tag: DoABCTag):
 def test_lookup_class(machine: VirtualMachine):
     assert machine.lookup_class('battle.BattleCore') == 2241
     assert machine.lookup_class('game.battle.controller.BattleController') == 989
+
+
+def test_lookup_method(machine: VirtualMachine):
+    assert machine.lookup_method('battle.BattleCore.getElementalPenetration') == 24363

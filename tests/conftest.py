@@ -13,7 +13,7 @@ from avm2.vm import VirtualMachine
 base_path = Path(tests.__file__).parent.parent / 'data'
 
 
-@fixture
+@fixture(scope='session')
 def swf_1() -> memoryview:
     return memoryview(bytes.fromhex(
         '465753034F0000007800055F00000FA000000C01004302FFFFFFBF0023000000'
@@ -22,38 +22,38 @@ def swf_1() -> memoryview:
     ))
 
 
-@fixture
+@fixture(scope='session')
 def swf_2() -> memoryview:
     return memoryview((base_path / 'heroes.swf').read_bytes())
 
 
-@fixture
+@fixture(scope='session')
 def swf_3() -> memoryview:
     return memoryview((base_path / 'Farm_d_13_9_2_2198334.swf').read_bytes())
 
 
-@fixture
+@fixture(scope='session')
 def swf_4() -> memoryview:
     return memoryview((base_path / 'EpicGame.swf').read_bytes())
 
 
-@fixture
+@fixture(scope='session')
 def raw_do_abc_tag(swf_2: memoryview) -> Tag:
     for tag in parse_swf(swf_2):
         if tag.type_ == TagType.DO_ABC:
             return tag
 
 
-@fixture
+@fixture(scope='session')
 def do_abc_tag(raw_do_abc_tag: Tag) -> DoABCTag:
     return DoABCTag(raw_do_abc_tag.raw)
 
 
-@fixture
+@fixture(scope='session')
 def abc_file(do_abc_tag: DoABCTag) -> ABCFile:
     return ABCFile(MemoryViewReader(do_abc_tag.abc_file))
 
 
-@fixture
+@fixture(scope='session')
 def machine(abc_file: ABCFile) -> VirtualMachine:
     return VirtualMachine(abc_file)

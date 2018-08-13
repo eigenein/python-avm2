@@ -119,6 +119,14 @@ class ASMultiname:
         else:
             assert False, 'unreachable code'
 
+    def qualified_name(self, constant_pool: ASConstantPool) -> str:
+        assert self.kind == MultinameKind.Q_NAME, self.kind
+        assert self.ns
+        namespace = constant_pool.namespaces[self.ns]
+        assert namespace.name
+        assert self.name
+        return f'{constant_pool.strings[namespace.name]}.{constant_pool.strings[self.name]}'.strip('.')
+
 
 @dataclass
 class ASMethod:

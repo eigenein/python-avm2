@@ -18,6 +18,8 @@ u30 = NewType('u30', int)
 uint = NewType('uint', int)
 s24 = NewType('s24', int)
 
+undefined = object()
+
 
 @dataclass
 class Instruction:
@@ -306,6 +308,19 @@ class GetGlobalSlot(Instruction):
 
 @instruction(96)
 class GetLex(Instruction):
+    """
+    `index` is a `u30` that must be an index into the multiname constant pool. The multiname at
+    `index` must not be a runtime multiname, so there are never any optional namespace or name
+    values on the stack.
+
+    This is the equivalent of doing a `findpropstrict` followed by a `getproperty`. It will find the
+    object on the scope stack that contains the property, and then will get the value from that
+    object. See "Resolving multinames" on page 10.
+
+    A `ReferenceError` is thrown if the property is unresolved in all of the objects on the scope
+    stack.
+    """
+
     index: u30
 
 
@@ -315,23 +330,27 @@ class GetLocal(Instruction):
 
 
 @instruction(208)
-class GetLocal1(Instruction):
+class GetLocal0(Instruction):
+    """
+    `<n>` is the index of a local register. The value of that register is pushed onto the stack.
+    """
+
     def execute(self, environment: avm2.MethodEnvironment):
-        environment.operand_stack.append(environment.registers[1])
+        environment.operand_stack.append(environment.registers[0])
 
 
 @instruction(209)
-class GetLocal2(Instruction):
+class GetLocal1(Instruction):
     pass
 
 
 @instruction(210)
-class GetLocal3(Instruction):
+class GetLocal2(Instruction):
     pass
 
 
 @instruction(211)
-class GetLocal4(Instruction):
+class GetLocal3(Instruction):
     pass
 
 
@@ -342,7 +361,17 @@ class GetProperty(Instruction):
 
 @instruction(101)
 class GetScopeObject(Instruction):
+    """
+    `index` is an unsigned byte that specifies the index of the scope object to retrieve from the local
+    scope stack. `index` must be less than the current depth of the scope stack. The scope at that
+    `index` is retrieved and pushed onto the stack. The scope at the top of the stack is at index
+    `scope_depth - 1`, and the scope at the bottom of the stack is index `0`.
+    """
+
     index: u8
+
+    def execute(self, environment: avm2.MethodEnvironment):
+        environment.operand_stack.append(environment.scope_stack[self.index])
 
 
 @instruction(108)
@@ -655,7 +684,10 @@ class PushNull(Instruction):
 
 @instruction(48)
 class PushScope(Instruction):
-    pass
+    def execute(self, environment: avm2.MethodEnvironment):
+        value = environment.operand_stack.pop()
+        assert value is not None and value is not undefined
+        environment.scope_stack.append(value)
 
 
 @instruction(37)

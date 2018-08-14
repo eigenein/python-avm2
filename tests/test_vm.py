@@ -26,16 +26,16 @@ def test_lookup_method(
     assert hitrate_intensity_method_index == 24360
 
 
-def test_execute_get_elemental_penetration(machine: VirtualMachine, get_elemental_penetration_method_index: ABCMethodIndex):
-    assert machine.execute_method(get_elemental_penetration_method_index, undefined, 2, 300000) == 1
-    assert machine.execute_method(get_elemental_penetration_method_index, undefined, 42, -100500) == 42
+def test_call_get_elemental_penetration(machine: VirtualMachine, get_elemental_penetration_method_index: ABCMethodIndex):
+    assert machine.call_method(get_elemental_penetration_method_index, undefined, 2, 300000) == 1
+    assert machine.call_method(get_elemental_penetration_method_index, undefined, 42, -100500) == 42
 
 
-def test_execute_hitrate_intensity(machine: VirtualMachine, hitrate_intensity_method_index: ABCMethodIndex):
-    assert machine.execute_method(hitrate_intensity_method_index, undefined, -100, 0) == 1
-    assert machine.execute_method(hitrate_intensity_method_index, undefined, 100, 0) == 1
-    assert machine.execute_method(hitrate_intensity_method_index, undefined, 0, 100) == 0
-    assert machine.execute_method(hitrate_intensity_method_index, undefined, 4, 8) == 0.5
+def test_call_hitrate_intensity(machine: VirtualMachine, hitrate_intensity_method_index: ABCMethodIndex):
+    assert machine.call_method(hitrate_intensity_method_index, undefined, -100, 0) == 1
+    assert machine.call_method(hitrate_intensity_method_index, undefined, 100, 0) == 1
+    assert machine.call_method(hitrate_intensity_method_index, undefined, 0, 100) == 0
+    assert machine.call_method(hitrate_intensity_method_index, undefined, 4, 8) == 0.5
 
 
 def test_create_battle_enemy_reward(machine: VirtualMachine, battle_enemy_reward_class_index: ABCClassIndex):

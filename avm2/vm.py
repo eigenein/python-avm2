@@ -81,21 +81,21 @@ class VirtualMachine:
     def init_class(self, class_index: ABCClassIndex):
         class_ = ASObject()
         self.classes[class_index] = class_
-        self.execute_method(self.abc_file.classes[class_index].init, class_)
+        self.call_method(self.abc_file.classes[class_index].init, class_)
 
     def create_instance(self, class_index: ABCClassIndex, *args) -> ASObject:
         if class_index not in self.classes:
             self.init_class(class_index)
         instance = ASObject()
-        self.execute_method(self.abc_file.instances[class_index].init, instance, *args)
+        self.call_method(self.abc_file.instances[class_index].init, instance, *args)
         return instance
 
     # Execution.
     # ------------------------------------------------------------------------------------------------------------------
 
-    def execute_entry_point(self):
+    def call_entry_point(self):
         """
-        Execute the entry point, that is the last script in ABCFile.
+        Call the entry point, that is the last script in ABCFile.
         """
         self.execute_script(self.abc_file.scripts[-1])
 
@@ -103,11 +103,11 @@ class VirtualMachine:
         """
         Execute the specified script.
         """
-        self.execute_method(script.init, this=...)  # FIXME: what is `this`? Looks like a scope.
+        self.call_method(script.init, this=...)  # FIXME: what is `this`? Looks like a scope.
 
-    def execute_method(self, index: ABCMethodIndex, this: Any, *args) -> Any:
+    def call_method(self, index: ABCMethodIndex, this: Any, *args) -> Any:
         """
-        Execute the specified method and get a return value.
+        Call the specified method and get a return value.
         """
         return self.execute_method_body(self.method_to_body[index], this, *args)
 

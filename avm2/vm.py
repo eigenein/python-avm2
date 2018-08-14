@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterable, List, Tuple
+from typing import Any, Dict, Iterable, List, Tuple, Union
 
 import avm2.abc.instructions
 from avm2.abc.enums import ConstantKind, MethodFlags, TraitKind
@@ -83,7 +83,13 @@ class VirtualMachine:
         self.classes[class_index] = class_
         self.call_method(self.abc_file.classes[class_index].init, class_)
 
-    def create_instance(self, class_index: ABCClassIndex, *args) -> ASObject:
+    def create_instance(self, index_or_name: Union[ABCClassIndex, str], *args) -> ASObject:
+        if isinstance(index_or_name, int):
+            class_index = ABCClassIndex(index_or_name)
+        elif isinstance(index_or_name, str):
+            class_index = self.lookup_class(index_or_name)
+        else:
+            raise ValueError(index_or_name)
         if class_index not in self.classes:
             self.init_class(class_index)
         instance = ASObject()
@@ -105,10 +111,16 @@ class VirtualMachine:
         """
         self.call_method(script.init, this=...)  # FIXME: what is `this`? Looks like a scope.
 
-    def call_method(self, index: ABCMethodIndex, this: Any, *args) -> Any:
+    def call_method(self, index_or_name: Union[ABCMethodIndex, str], this: Any, *args) -> Any:
         """
         Call the specified method and get a return value.
         """
+        if isinstance(index_or_name, int):
+            index = ABCMethodIndex(index_or_name)
+        elif isinstance(index_or_name, str):
+            index = self.lookup_method(index_or_name)
+        else:
+            raise ValueError(index_or_name)
         return self.execute_method_body(self.method_to_body[index], this, *args)
 
     def execute_method_body(self, index: ABCMethodBodyIndex, this: Any, *args) -> Any:

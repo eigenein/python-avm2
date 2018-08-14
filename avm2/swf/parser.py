@@ -13,8 +13,6 @@ def parse_swf(input_: Union[memoryview, bytes]) -> Iterable[Tag]:
     """
     Parse SWF file and get an iterable of its tags.
     """
-    if isinstance(input_, bytes):
-        input_ = memoryview(input_)
     reader = MemoryViewReader(input_)
     signature = Signature(reader.read_u8())
     assert reader.read_u16() == 0x5357

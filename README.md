@@ -7,6 +7,45 @@ Development is still ongoing.
 - I just needed to run a particular SWF and not to implement a full-featured virtual machine.
 - I don't care a lot about performance, I rather care about maintainability.
 
+## Recipes
+
+### Parse an SWF file
+
+```python
+from pathlib import Path
+
+from avm2.swf.parser import parse_swf
+
+tags = list(parse_swf(Path('heroes.swf').read_bytes()))
+```
+
+### Execute a code tag
+
+```python
+from typing import Iterable
+
+from avm2.swf.enums import TagType
+from avm2.swf.types import Tag
+from avm2.vm import execute_tag
+
+tags: Iterable[Tag] = ...
+
+for tag in tags:
+    if tag.type_ == TagType.DO_ABC:
+        machine = execute_tag(tag)
+```
+
+### Call a method
+
+```python
+from avm2.runtime import undefined
+from avm2.vm import VirtualMachine
+
+machine: VirtualMachine = ...
+
+machine.call_method('battle.BattleCore.hitrateIntensity', undefined, 4, 8)
+```
+
 ## Links
 
 - https://wwwimages2.adobe.com/content/dam/acom/en/devnet/pdf/avm2overview.pdf

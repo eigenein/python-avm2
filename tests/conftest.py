@@ -14,27 +14,27 @@ base_path = Path(tests.__file__).parent.parent / 'data'
 
 
 @fixture(scope='session')
-def swf_1() -> memoryview:
-    return memoryview(bytes.fromhex(
+def swf_1() -> bytes:
+    return bytes.fromhex(
         '465753034F0000007800055F00000FA000000C01004302FFFFFFBF0023000000'
         '010070FB49970D0C7D50000114000000000125C9920D21ED488765303B6DE1D8'
         'B40000860606010001000040000000'
-    ))
+    )
 
 
 @fixture(scope='session')
-def swf_2() -> memoryview:
-    return memoryview((base_path / 'heroes.swf').read_bytes())
+def swf_2() -> bytes:
+    return (base_path / 'heroes.swf').read_bytes()
 
 
 @fixture(scope='session')
-def swf_3() -> memoryview:
-    return memoryview((base_path / 'Farm_d_13_9_2_2198334.swf').read_bytes())
+def swf_3() -> bytes:
+    return (base_path / 'Farm_d_13_9_2_2198334.swf').read_bytes()
 
 
 @fixture(scope='session')
-def swf_4() -> memoryview:
-    return memoryview((base_path / 'EpicGame.swf').read_bytes())
+def swf_4() -> bytes:
+    return (base_path / 'EpicGame.swf').read_bytes()
 
 
 @fixture(scope='session')

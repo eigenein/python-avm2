@@ -1,4 +1,3 @@
-from avm2.abc.types import ABCClassIndex
 from avm2.runtime import undefined
 from avm2.swf.types import DoABCTag, Tag
 from avm2.vm import VirtualMachine, execute_do_abc_tag, execute_tag

@@ -126,9 +126,10 @@ class VirtualMachine:
         registers[1:len(args) + 1] = args
         # If fewer than `method_body_info.local_count` values are supplied to the call then the remaining values are
         # either the values provided by default value declarations (optional arguments) or the value `undefined`.
-        assert not method.options or len(method.options) <= method.param_count
-        for i, option in zip(range(len(args) + 1, method_body.local_count), method.options):
-            registers[i] = self.get_optional_value(option)
+        if method.options:
+            assert len(method.options) <= method.param_count
+            for i, option in zip(range(len(args) + 1, method_body.local_count), method.options):
+                registers[i] = self.get_optional_value(option)
         # If `NEED_REST` is set in `method_info.flags`, the `method_info.param_count + 1` register is set up to
         # reference an array that holds the superflous arguments.
         if MethodFlags.NEED_REST in method.flags:

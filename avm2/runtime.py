@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+from dataclasses import dataclass, field
+from typing import Any, Dict
 
+
+@dataclass
 class ASObject:
-    pass
+    properties: Dict[str, Any] = field(default_factory=dict)
 
 
+@dataclass
 class ASUndefined(ASObject):
-    def __repr__(self):
-        return f'{self.__class__.__name__}()'
+    pass
 
 
 undefined = ASUndefined()

@@ -4,12 +4,21 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Tuple
 
 import avm2.abc.instructions
-from avm2.abc.enums import MethodFlags, TraitKind, ConstantKind
-from avm2.abc.types import ABCFile, ABCClassIndex, ABCMethodIndex, ABCMethodBodyIndex, ASMethod, ASMethodBody, ASOptionDetail, ASScript
+from avm2.abc.enums import ConstantKind, MethodFlags, TraitKind
+from avm2.abc.types import (
+    ABCClassIndex,
+    ABCFile,
+    ABCMethodBodyIndex,
+    ABCMethodIndex,
+    ASMethod,
+    ASMethodBody,
+    ASOptionDetail,
+    ASScript,
+)
+from avm2.exceptions import ASJumpException, ASReturnException
 from avm2.io import MemoryViewReader
-from avm2.runtime import undefined
+from avm2.runtime import ASObject, undefined
 from avm2.swf.types import DoABCTag, Tag, TagType
-from avm2.exceptions import ASReturnException, ASJumpException
 
 
 class VirtualMachine:
@@ -27,6 +36,7 @@ class VirtualMachine:
         self.method_to_body = self.link_method_bodies()
         self.name_to_class = dict(self.link_class_names())
         self.name_to_method = dict(self.link_method_names())
+        self.classes: Dict[ABCClassIndex, ASObject] = dict()
 
     # Linking.
     # ------------------------------------------------------------------------------------------------------------------
@@ -64,6 +74,21 @@ class VirtualMachine:
 
     def lookup_method(self, qualified_name: str) -> ABCMethodIndex:
         return self.name_to_method[qualified_name]
+
+    # Classes.
+    # ------------------------------------------------------------------------------------------------------------------
+
+    def init_class(self, class_index: ABCClassIndex):
+        class_ = ASObject()
+        self.classes[class_index] = class_
+        self.execute_method(self.abc_file.classes[class_index].init, class_)
+
+    def create_instance(self, class_index: ABCClassIndex, *args) -> ASObject:
+        if class_index not in self.classes:
+            self.init_class(class_index)
+        instance = ASObject()
+        self.execute_method(self.abc_file.instances[class_index].init, instance, *args)
+        return instance
 
     # Execution.
     # ------------------------------------------------------------------------------------------------------------------

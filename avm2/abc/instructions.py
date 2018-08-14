@@ -326,7 +326,28 @@ class FindProperty(Instruction):
 
 @instruction(93)
 class FindPropStrict(Instruction):
+    """
+    `index` is a `u30` that must be an index into the `multiname` constant pool. If the multiname at
+    that index is a runtime multiname the name and/or namespace will also appear on the stack
+    so that the multiname can be constructed correctly at runtime.
+
+    This searches the scope stack, and then the saved scope in the method closure, for a property
+    with the name specified by the multiname at index.
+
+    If any of the objects searched is a with scope, its declared and dynamic properties will be
+    searched for a match. Otherwise only the declared traits of a scope will be searched. The
+    global object will have its declared traits, dynamic properties, and prototype chain searched.
+
+    If the property is resolved then the object it was resolved in is pushed onto the stack. If the
+    property is unresolved in all objects on the scope stack then an exception is thrown.
+
+    A `ReferenceError` is thrown if the property is not resolved in any object on the scope stack.
+    """
+
     index: u30
+
+    def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
+        raise NotImplementedError(f'{machine.multinames[self.index].qualified_name(machine.constant_pool)}')
 
 
 @instruction(89)
@@ -876,7 +897,13 @@ class ReturnValue(Instruction):
 
 @instruction(71)
 class ReturnVoid(Instruction):
-    pass
+    """
+    Return from the currently executing method. This returns the value `undefined`. If the
+    method has a return type, then undefined is coerced to that type and then returned.
+    """
+
+    def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
+        raise ASReturnException(undefined)
 
 
 @instruction(166)

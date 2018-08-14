@@ -9,6 +9,7 @@ from avm2.abc.types import ABCFile, ABCClassIndex, ABCMethodIndex, ABCMethodBody
 from avm2.io import MemoryViewReader
 from avm2.runtime import undefined
 from avm2.swf.types import DoABCTag, Tag, TagType
+from avm2.exceptions import ASReturnException
 
 
 class VirtualMachine:
@@ -20,6 +21,7 @@ class VirtualMachine:
         self.strings = self.constant_pool.strings
         self.multinames = self.constant_pool.multinames
         self.integers = self.constant_pool.integers
+        self.doubles = self.constant_pool.doubles
 
         # Linking.
         self.method_to_body = self.link_method_bodies()
@@ -78,30 +80,34 @@ class VirtualMachine:
         """
         self.execute_method(script.init, this=...)  # FIXME: what is `this`? Looks like a scope.
 
-    def execute_method(self, index: ABCMethodIndex, this: Any, *args):
+    def execute_method(self, index: ABCMethodIndex, this: Any, *args) -> Any:
         """
-        Execute the specified method.
+        Execute the specified method and get a return value.
         """
-        self.execute_method_body(self.method_to_body[index], this, *args)
+        return self.execute_method_body(self.method_to_body[index], this, *args)
 
-    def execute_method_body(self, index: ABCMethodBodyIndex, this: Any, *args):
+    def execute_method_body(self, index: ABCMethodBodyIndex, this: Any, *args) -> Any:
         """
-        Execute the method body.
+        Execute the method body and get a return value.
         """
         method_body: ASMethodBody = self.abc_file.method_bodies[index]
         method: ASMethod = self.abc_file.methods[method_body.method]
         environment = self.create_method_environment(method, method_body, this, *args)
-        self.execute_code(method_body.code, environment)
+        return self.execute_code(method_body.code, environment)
 
-    def execute_code(self, code: memoryview, environment: MethodEnvironment):
+    def execute_code(self, code: memoryview, environment: MethodEnvironment) -> Any:
         """
-        Execute the byte-code.
+        Execute the byte-code and get a return value.
         """
         reader = MemoryViewReader(code)
         while True:
-            # FIXME: cache already read instructions.
-            offset = avm2.abc.instructions.read_instruction(reader).execute(self, environment) or 0
-            reader.position += offset
+            try:
+                # FIXME: cache already read instructions.
+                offset = avm2.abc.instructions.read_instruction(reader).execute(self, environment) or 0
+            except ASReturnException as e:
+                return e.return_value
+            else:
+                reader.position += offset
 
     # Unclassified.
     # ------------------------------------------------------------------------------------------------------------------

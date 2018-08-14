@@ -4,6 +4,7 @@ from dataclasses import dataclass, fields
 from typing import Any, Callable, ClassVar, Dict, Tuple, Type, TypeVar, NewType, Optional
 
 import avm2.vm
+from avm2.exceptions import ASReturnException
 from avm2.runtime import undefined
 from avm2.abc.parser import read_array
 from avm2.io import MemoryViewReader
@@ -54,7 +55,10 @@ def instruction(opcode: int) -> Callable[[], Type[T]]:
 
 @instruction(160)
 class Add(Instruction):
-    pass
+    def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
+        value_1 = environment.operand_stack.pop()
+        value_2 = environment.operand_stack.pop()
+        environment.operand_stack.append(value_1 + value_2)
 
 
 @instruction(197)
@@ -182,12 +186,26 @@ class ConvertToBoolean(Instruction):
 
 @instruction(115)
 class ConvertToInteger(Instruction):
-    pass
+    """
+    `value` is popped off of the stack and converted to an integer. The result, `intvalue`, is pushed
+    onto the stack. This uses the `ToInt32` algorithm, as described in ECMA-262 section 9.5, to
+    perform the conversion.
+    """
+
+    def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
+        environment.operand_stack.append(int(environment.operand_stack.pop()))
 
 
 @instruction(117)
 class ConvertToDouble(Instruction):
-    pass
+    """
+    `value` is popped off of the stack and converted to a double. The result, `doublevalue`, is pushed
+    onto the stack. This uses the `ToNumber` algorithm, as described in ECMA-262 section 9.3,
+    to perform the conversion.
+    """
+
+    def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
+        environment.operand_stack.append(float(environment.operand_stack.pop()))
 
 
 @instruction(119)
@@ -257,8 +275,8 @@ class Divide(Instruction):
     """
 
     def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
-        value_2 = environment.operand_stack.pop()
         value_1 = environment.operand_stack.pop()
+        value_2 = environment.operand_stack.pop()
         environment.operand_stack.append(value_1 / value_2)
 
 
@@ -480,8 +498,8 @@ class IfNLT(Instruction):
     offset: s24
 
     def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
-        value_2 = environment.operand_stack.pop()
         value_1 = environment.operand_stack.pop()
+        value_2 = environment.operand_stack.pop()
         # FIXME: NaN.
         if value_1 < value_2:
             return self.offset
@@ -689,7 +707,15 @@ class PushByte(Instruction):
 
 @instruction(47)
 class PushDouble(Instruction):
+    """
+    `index` is a `u30` that must be an index into the `double` constant pool. The double value at
+    `index` in the `double` constant pool is pushed onto the stack.
+    """
+
     index: u30
+
+    def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
+        environment.operand_stack.append(machine.doubles[self.index])
 
 
 @instruction(39)
@@ -700,7 +726,7 @@ class PushFalse(Instruction):
 @instruction(45)
 class PushInteger(Instruction):
     """
-    `index` is a `u30` that must be an index into the integer constant pool. The int value at `index` in
+    `index` is a `u30` that must be an index into the `integer` constant pool. The int value at `index` in
     the integer constant pool is pushed onto the stack.
     """
 
@@ -765,7 +791,18 @@ class PushWith(Instruction):
 
 @instruction(72)
 class ReturnValue(Instruction):
-    pass
+    """
+    Return from the currently executing method. This returns the top value on the stack.
+    `return_value` is popped off of the stack, and coerced to the expected return type of the
+    method. The coerced value is what is actually returned from the method.
+
+    A `TypeError` is thrown if `return_value` cannot be coerced to the expected return type of the
+    executing method.
+    """
+
+    def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
+        # FIXME: coerce to the expected return type.
+        raise ASReturnException(environment.operand_stack.pop())
 
 
 @instruction(71)
@@ -784,23 +821,32 @@ class SetLocal(Instruction):
 
 
 @instruction(212)
-class SetLocal1(Instruction):
-    pass
+class SetLocal0(Instruction):
+    def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
+        environment.registers[0] = environment.operand_stack.pop()
 
 
 @instruction(213)
-class SetLocal2(Instruction):
-    pass
+class SetLocal1(Instruction):
+    def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
+        environment.registers[1] = environment.operand_stack.pop()
 
 
 @instruction(214)
-class SetLocal3(Instruction):
-    pass
+class SetLocal2(Instruction):
+    """
+    `<n>` is an index of a local register. The register at that index is set to value, and value is
+    popped off the stack.
+    """
+
+    def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
+        environment.registers[2] = environment.operand_stack.pop()
 
 
 @instruction(215)
-class SetLocal4(Instruction):
-    pass
+class SetLocal3(Instruction):
+    def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
+        environment.registers[3] = environment.operand_stack.pop()
 
 
 @instruction(111)

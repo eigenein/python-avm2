@@ -16,9 +16,10 @@ def test_lookup_class(machine: VirtualMachine):
     assert machine.lookup_class('game.battle.controller.BattleController') == 989
 
 
-def test_lookup_method(machine: VirtualMachine):
-    assert machine.lookup_method('battle.BattleCore.getElementalPenetration') == 24363
+def test_lookup_method(get_elemental_penetration_method_index: ABCMethodIndex):
+    assert get_elemental_penetration_method_index == 24363
 
 
-def test_execute_method(machine: VirtualMachine):
-    machine.execute_method(ABCMethodIndex(24363), ..., 2, 30000)
+def test_execute_get_elemental_penetration(machine: VirtualMachine, get_elemental_penetration_method_index: ABCMethodIndex):
+    assert machine.execute_method(get_elemental_penetration_method_index, ..., 2, 300000) == 1
+    assert machine.execute_method(get_elemental_penetration_method_index, ..., -42, 300000) == 0

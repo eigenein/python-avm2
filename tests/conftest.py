@@ -3,7 +3,7 @@ from pathlib import Path
 from pytest import fixture
 
 import tests
-from avm2.abc.types import ABCFile
+from avm2.abc.types import ABCFile, ABCMethodIndex
 from avm2.io import MemoryViewReader
 from avm2.swf.enums import TagType
 from avm2.swf.parser import parse_swf
@@ -57,3 +57,8 @@ def abc_file(do_abc_tag: DoABCTag) -> ABCFile:
 @fixture(scope='session')
 def machine(abc_file: ABCFile) -> VirtualMachine:
     return VirtualMachine(abc_file)
+
+
+@fixture(scope='session')
+def get_elemental_penetration_method_index(machine: VirtualMachine) -> ABCMethodIndex:
+    return machine.lookup_method('battle.BattleCore.getElementalPenetration')

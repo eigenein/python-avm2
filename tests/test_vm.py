@@ -34,5 +34,5 @@ def test_call_hitrate_intensity(machine: VirtualMachine):
     assert machine.call_method('battle.BattleCore.hitrateIntensity', undefined, 4, 8) == 0.5
 
 
-def test_create_battle_enemy_reward(machine: VirtualMachine):
-    machine.create_instance('game.battle.controller.BattleEnemyReward')
+def test_new_battle_enemy_reward(machine: VirtualMachine):
+    machine.new_instance('game.battle.controller.BattleEnemyReward')

@@ -5,16 +5,8 @@ from typing import Any, Dict, Iterable, List, Tuple, Union
 
 import avm2.abc.instructions
 from avm2.abc.enums import ConstantKind, MethodFlags, TraitKind
-from avm2.abc.types import (
-    ABCClassIndex,
-    ABCFile,
-    ABCMethodBodyIndex,
-    ABCMethodIndex,
-    ASMethod,
-    ASMethodBody,
-    ASOptionDetail,
-    ASScript,
-)
+from avm2.abc.types import (ABCClassIndex, ABCFile, ABCMethodBodyIndex, ABCMethodIndex, ABCScriptIndex, ASMethod,
+    ASMethodBody, ASOptionDetail)
 from avm2.exceptions import ASJumpException, ASReturnException
 from avm2.io import MemoryViewReader
 from avm2.runtime import ASObject, undefined
@@ -33,21 +25,27 @@ class VirtualMachine:
         self.doubles = self.constant_pool.doubles
 
         # Linking.
-        self.method_to_body = self.link_method_bodies()
-        self.name_to_class = dict(self.link_class_names())
-        self.name_to_method = dict(self.link_method_names())
-        self.classes: Dict[ABCClassIndex, ASObject] = dict()
+        self.method_to_body = self.link_methods_to_bodies()
+        self.name_to_class = dict(self.link_names_to_classes())
+        self.name_to_method = dict(self.link_names_to_methods())
+        self.class_to_script = dict(self.link_classes_to_scripts())
+        # TODO: method to class in order to initialise class.
+
+        # Runtime.
+        self.class_objects: Dict[ABCClassIndex, ASObject] = dict()  # FIXME: unsure.
+        self.script_objects: Dict[ABCScriptIndex, ASObject] = dict()  # FIXME: unsure.
+        self.global_object = ASObject({'Object': ASObject})  # FIXME: unsure.
 
     # Linking.
     # ------------------------------------------------------------------------------------------------------------------
 
-    def link_method_bodies(self) -> Dict[ABCMethodIndex, ABCMethodBodyIndex]:
+    def link_methods_to_bodies(self) -> Dict[ABCMethodIndex, ABCMethodBodyIndex]:
         """
         Link methods and methods bodies.
         """
         return {method_body.method: index for index, method_body in enumerate(self.abc_file.method_bodies)}
 
-    def link_class_names(self) -> Iterable[Tuple[str, ABCClassIndex]]:
+    def link_names_to_classes(self) -> Iterable[Tuple[str, ABCClassIndex]]:
         """
         Link class names and class indices.
         """
@@ -55,7 +53,7 @@ class VirtualMachine:
             assert instance.name
             yield self.multinames[instance.name].qualified_name(self.constant_pool), index
 
-    def link_method_names(self) -> Iterable[Tuple[str, ABCMethodIndex]]:
+    def link_names_to_methods(self) -> Iterable[Tuple[str, ABCMethodIndex]]:
         """
         Link method names and method indices.
         """
@@ -66,6 +64,12 @@ class VirtualMachine:
                     qualified_trait_name = self.multinames[trait.name].qualified_name(self.constant_pool)
                     yield f'{qualified_class_name}.{qualified_trait_name}', trait.data.method
 
+    def link_classes_to_scripts(self) -> Iterable[Tuple[ABCClassIndex, ABCScriptIndex]]:
+        for script_index, script in enumerate(self.abc_file.scripts):
+            for trait in script.traits:
+                if trait.kind == TraitKind.CLASS:
+                    yield trait.data.class_, script_index
+
     # Lookups.
     # ------------------------------------------------------------------------------------------------------------------
 
@@ -75,23 +79,37 @@ class VirtualMachine:
     def lookup_method(self, qualified_name: str) -> ABCMethodIndex:
         return self.name_to_method[qualified_name]
 
+    # Scripts.
+    # ------------------------------------------------------------------------------------------------------------------
+
+    def init_script(self, script_index: ABCScriptIndex):
+        """
+        Initialise the specified script.
+        """
+        if script_index in self.script_objects:
+            return
+        script_object = ASObject()
+        self.call_method(self.abc_file.scripts[script_index].init, script_object)  # TODO: what is `this`?
+        self.script_objects[script_index] = script_object
+
     # Classes.
     # ------------------------------------------------------------------------------------------------------------------
 
     def init_class(self, class_index: ABCClassIndex):
-        class_ = ASObject()
-        self.classes[class_index] = class_
-        self.call_method(self.abc_file.classes[class_index].init, class_)
+        class_object = ASObject()
+        self.class_objects[class_index] = class_object
+        self.call_method(self.abc_file.classes[class_index].init, class_object)
+        # TODO: the scope stack is saved by the created ClassClosure.
 
-    def create_instance(self, index_or_name: Union[ABCClassIndex, str], *args) -> ASObject:
+    def new_instance(self, index_or_name: Union[ABCClassIndex, str], *args) -> ASObject:
         if isinstance(index_or_name, int):
             class_index = ABCClassIndex(index_or_name)
         elif isinstance(index_or_name, str):
             class_index = self.lookup_class(index_or_name)
         else:
             raise ValueError(index_or_name)
-        if class_index not in self.classes:
-            self.init_class(class_index)
+        self.init_script(self.class_to_script[class_index])
+
         instance = ASObject()
         self.call_method(self.abc_file.instances[class_index].init, instance, *args)
         return instance
@@ -103,13 +121,7 @@ class VirtualMachine:
         """
         Call the entry point, that is the last script in ABCFile.
         """
-        self.execute_script(self.abc_file.scripts[-1])
-
-    def execute_script(self, script: ASScript):
-        """
-        Execute the specified script.
-        """
-        self.call_method(script.init, this=...)  # FIXME: what is `this`? Looks like a scope.
+        self.init_script(ABCScriptIndex(-1))
 
     def call_method(self, index_or_name: Union[ABCMethodIndex, str], this: Any, *args) -> Any:
         """
@@ -177,7 +189,7 @@ class VirtualMachine:
         if MethodFlags.NEED_ARGUMENTS in method.flags:
             registers[method.param_count + 1] = args
         assert len(registers) == method_body.local_count
-        return MethodEnvironment(registers=registers)
+        return MethodEnvironment(registers=registers, scope_stack=[self.global_object])
 
     def get_optional_value(self, option: ASOptionDetail) -> Any:
         """
@@ -199,8 +211,8 @@ class VirtualMachine:
 @dataclass
 class MethodEnvironment:
     registers: List[Any]
+    scope_stack: List[Any]
     operand_stack: List[Any] = field(default_factory=list)
-    scope_stack: List[Any] = field(default_factory=list)
 
 
 def execute_tag(tag: Tag) -> VirtualMachine:

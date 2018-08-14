@@ -25,6 +25,7 @@ ABCMethodIndex = NewType('ABCMethodIndex', int)
 ABCMethodBodyIndex = NewType('ABCMethodBodyIndex', int)
 ABCMetadataIndex = NewType('ABCMetadataIndex', int)
 ABCClassIndex = NewType('ABCClassIndex', int)
+ABCScriptIndex = NewType('ABCScriptIndex', int)
 
 
 @dataclass
@@ -93,16 +94,16 @@ class ASNamespaceSet:
 @dataclass
 class ASMultiname:
     kind: MultinameKind
-    ns: Optional[ABCNamespaceIndex] = None
+    namespace: Optional[ABCNamespaceIndex] = None
     name: Optional[ABCStringIndex] = None
-    ns_set: Optional[ABCNamespaceSetIndex] = None
+    namespace_set: Optional[ABCNamespaceSetIndex] = None
     q_name: Optional[ABCMultinameIndex] = None
     types: Optional[List[ABCMultinameIndex]] = None
 
     def __init__(self, reader: MemoryViewReader):
         self.kind = MultinameKind(reader.read_u8())
         if self.kind in (MultinameKind.Q_NAME, MultinameKind.Q_NAME_A):
-            self.ns = reader.read_int()
+            self.namespace = reader.read_int()
             self.name = reader.read_int()
         elif self.kind in (MultinameKind.RTQ_NAME, MultinameKind.RTQ_NAME_A):
             self.name = reader.read_int()
@@ -110,9 +111,9 @@ class ASMultiname:
             pass
         elif self.kind in (MultinameKind.MULTINAME, MultinameKind.MULTINAME_A):
             self.name = reader.read_int()
-            self.ns = reader.read_int()
+            self.namespace_set = reader.read_int()
         elif self.kind in (MultinameKind.MULTINAME_L, MultinameKind.MULTINAME_LA):
-            self.ns = reader.read_int()
+            self.namespace_set = reader.read_int()
         elif self.kind == MultinameKind.TYPE_NAME:
             self.q_name = reader.read_int()
             self.types = read_array(reader, MemoryViewReader.read_int)
@@ -121,9 +122,9 @@ class ASMultiname:
 
     def qualified_name(self, constant_pool: ASConstantPool) -> str:
         assert self.kind == MultinameKind.Q_NAME, self.kind
-        assert self.ns
+        assert self.namespace
         assert self.name
-        namespace = constant_pool.namespaces[self.ns]
+        namespace = constant_pool.namespaces[self.namespace]
         assert namespace.name
         return f'{constant_pool.strings[namespace.name]}.{constant_pool.strings[self.name]}'.strip('.')
 

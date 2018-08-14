@@ -4,10 +4,11 @@ from dataclasses import dataclass, fields
 from typing import Any, Callable, ClassVar, Dict, Tuple, Type, TypeVar, NewType, Optional
 
 import avm2.vm
-from avm2.exceptions import ASReturnException, ASJumpException
+from avm2.exceptions import ASReturnException, ASJumpException, ASError
 from avm2.runtime import undefined
 from avm2.abc.parser import read_array
 from avm2.io import MemoryViewReader
+from avm2.abc.enums import MultinameKind
 
 
 def read_instruction(reader: MemoryViewReader) -> Instruction:
@@ -291,7 +292,13 @@ class Divide(Instruction):
 
 @instruction(42)
 class Dup(Instruction):
-    pass
+    """
+    Duplicates the top value of the stack, and then pushes the duplicated value onto the stack.
+    """
+
+    def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
+        value = environment.operand_stack.pop()
+        environment.operand_stack.extend([value, value])
 
 
 @instruction(6)
@@ -381,6 +388,17 @@ class GetLex(Instruction):
     """
 
     index: u30
+
+    def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
+        multiname = machine.multinames[self.index]
+        assert multiname.kind == MultinameKind.Q_NAME
+        qualified_name = multiname.qualified_name(machine.constant_pool)
+        for scope in reversed(environment.scope_stack):
+            if qualified_name in scope:
+                environment.operand_stack.append(scope)
+                break
+        else:
+            raise ASError(...)  # FIXME: ReferenceError
 
 
 @instruction(98)

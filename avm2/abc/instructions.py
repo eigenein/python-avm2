@@ -4,7 +4,7 @@ from dataclasses import dataclass, fields
 from typing import Any, Callable, ClassVar, Dict, Tuple, Type, TypeVar, NewType, Optional
 
 import avm2.vm
-from avm2.exceptions import ASReturnException
+from avm2.exceptions import ASReturnException, ASJumpException
 from avm2.runtime import undefined
 from avm2.abc.parser import read_array
 from avm2.io import MemoryViewReader
@@ -56,14 +56,23 @@ def instruction(opcode: int) -> Callable[[], Type[T]]:
 @instruction(160)
 class Add(Instruction):
     def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
-        value_1 = environment.operand_stack.pop()
         value_2 = environment.operand_stack.pop()
+        value_1 = environment.operand_stack.pop()
         environment.operand_stack.append(value_1 + value_2)
 
 
 @instruction(197)
 class AddInteger(Instruction):
-    pass
+    """
+    Pop value1 and value2 off of the stack and convert them to int values using the ToInt32
+    algorithm (ECMA-262 section 9.5). Add the two int values and push the result onto the
+    stack.
+    """
+
+    def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
+        value_2 = environment.operand_stack.pop()
+        value_1 = environment.operand_stack.pop()
+        environment.operand_stack.append(int(value_1) + int(value_2))
 
 
 @instruction(134)
@@ -275,8 +284,8 @@ class Divide(Instruction):
     """
 
     def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
-        value_1 = environment.operand_stack.pop()
         value_2 = environment.operand_stack.pop()
+        value_1 = environment.operand_stack.pop()
         environment.operand_stack.append(value_1 / value_2)
 
 
@@ -418,7 +427,16 @@ class GetSuper(Instruction):
 
 @instruction(176)
 class GreaterEquals(Instruction):
-    pass
+    """
+    Pop `value1` and `value2` off of the stack. Compute `value1 < value2` using the Abstract
+    Relational Comparison Algorithm, as described in ECMA-262 section 11.8.5. If the result of
+    the comparison is `false`, push `true` onto the stack. Otherwise push `false` onto the stack.
+    """
+
+    def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
+        value_2 = environment.operand_stack.pop()
+        value_1 = environment.operand_stack.pop()
+        environment.operand_stack.append(value_1 >= value_2)
 
 
 @instruction(175)
@@ -444,7 +462,16 @@ class IfEq(Instruction):
 
 @instruction(18)
 class IfFalse(Instruction):
+    """
+    Pop value off the stack and convert it to a `Boolean`. If the converted value is `false`, jump the
+    number of bytes indicated by `offset`. Otherwise continue executing code from this point.
+    """
+
     offset: s24
+
+    def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
+        if not environment.operand_stack.pop():
+            raise ASJumpException(self.offset)
 
 
 @instruction(24)
@@ -464,7 +491,21 @@ class IfLE(Instruction):
 
 @instruction(21)
 class IfLT(Instruction):
+    """
+    `offset` is an `s24` that is the number of bytes to jump if `value1` is less than `value2`.
+
+    Compute value1 < value2 using the abstract relational comparison algorithm in ECMA-262
+    section 11.8.5. If the result of the comparison is `true`, jump the number of bytes indicated
+    by `offset`. Otherwise continue executing code from this point.
+    """
+
     offset: s24
+
+    def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
+        value_2 = environment.operand_stack.pop()
+        value_1 = environment.operand_stack.pop()
+        if value_1 < value_2:
+            raise ASJumpException(self.offset)
 
 
 @instruction(15)
@@ -474,7 +515,20 @@ class IfNGE(Instruction):
 
 @instruction(14)
 class IfNGT(Instruction):
+    """
+    Compute `value2 < value1` using the abstract relational comparison algorithm in ECMA-262
+    section 11.8.5. If the result of the comparison is not `true`, jump the number of bytes
+    indicated by `offset`. Otherwise continue executing code from this point.
+    """
+
     offset: s24
+
+    def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
+        value_2 = environment.operand_stack.pop()
+        value_1 = environment.operand_stack.pop()
+        # FIXME: NaN.
+        if not value_1 > value_2:
+            raise ASJumpException(self.offset)
 
 
 @instruction(13)
@@ -498,11 +552,11 @@ class IfNLT(Instruction):
     offset: s24
 
     def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
-        value_1 = environment.operand_stack.pop()
         value_2 = environment.operand_stack.pop()
+        value_1 = environment.operand_stack.pop()
         # FIXME: NaN.
-        if value_1 < value_2:
-            return self.offset
+        if not value_1 < value_2:
+            raise ASJumpException(self.offset)
 
 
 @instruction(20)
@@ -689,7 +743,12 @@ class Not(Instruction):
 
 @instruction(41)
 class Pop(Instruction):
-    pass
+    """
+    Pops the top value from the stack and discards it.
+    """
+
+    def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
+        environment.operand_stack.pop()
 
 
 @instruction(29)
@@ -720,7 +779,12 @@ class PushDouble(Instruction):
 
 @instruction(39)
 class PushFalse(Instruction):
-    pass
+    """
+    Push the false value onto the stack.
+    """
+
+    def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
+        environment.operand_stack.append(False)
 
 
 @instruction(45)
@@ -771,7 +835,12 @@ class PushString(Instruction):
 
 @instruction(38)
 class PushTrue(Instruction):
-    pass
+    """
+    Push the `true` value onto the stack.
+    """
+
+    def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
+        environment.operand_stack.append(True)
 
 
 @instruction(46)
@@ -881,7 +950,16 @@ class Subtract(Instruction):
 
 @instruction(198)
 class SubtractInteger(Instruction):
-    pass
+    """
+    Pop `value1` and `value2` off of the stack and convert `value1` and `value2` to int to create
+    `value1_int` and `value2_int`. Subtract `value2_int` from `value1_int`. Push the result onto the
+    stack.
+    """
+
+    def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
+        value_2 = environment.operand_stack.pop()
+        value_1 = environment.operand_stack.pop()
+        environment.operand_stack.append(int(value_1) - int(value_2))
 
 
 @instruction(43)

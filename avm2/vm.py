@@ -4,12 +4,12 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Tuple
 
 import avm2.abc.instructions
-from avm2.abc.enums import MethodFlags, TraitKind
+from avm2.abc.enums import MethodFlags, TraitKind, ConstantKind
 from avm2.abc.types import ABCFile, ABCClassIndex, ABCMethodIndex, ABCMethodBodyIndex, ASMethod, ASMethodBody, ASOptionDetail, ASScript
 from avm2.io import MemoryViewReader
 from avm2.runtime import undefined
 from avm2.swf.types import DoABCTag, Tag, TagType
-from avm2.exceptions import ASReturnException
+from avm2.exceptions import ASReturnException, ASJumpException
 
 
 class VirtualMachine:
@@ -103,11 +103,11 @@ class VirtualMachine:
         while True:
             try:
                 # FIXME: cache already read instructions.
-                offset = avm2.abc.instructions.read_instruction(reader).execute(self, environment) or 0
+                avm2.abc.instructions.read_instruction(reader).execute(self, environment)
             except ASReturnException as e:
                 return e.return_value
-            else:
-                reader.position += offset
+            except ASJumpException as e:
+                reader.position += e.offset
 
     # Unclassified.
     # ------------------------------------------------------------------------------------------------------------------
@@ -117,7 +117,7 @@ class VirtualMachine:
         Create method execution environment: registers and stacks.
         """
         # There are `method_body_info.local_count` registers.
-        registers: List[Any] = [...] * method_body.local_count
+        registers: List[Any] = [undefined] * method_body.local_count
         # Register 0 holds the "this" object. This value is never null.
         registers[0] = this
         # Registers 1 through `method_info.param_count` holds parameter values coerced to the declared types
@@ -127,8 +127,8 @@ class VirtualMachine:
         # If fewer than `method_body_info.local_count` values are supplied to the call then the remaining values are
         # either the values provided by default value declarations (optional arguments) or the value `undefined`.
         assert not method.options or len(method.options) <= method.param_count
-        for i in range(len(args) + 1, method_body.local_count):
-            registers[i] = self.get_optional_value(method.options[i - 1]) if i <= len(method.options) else undefined
+        for i, option in zip(range(len(args) + 1, method_body.local_count), method.options):
+            registers[i] = self.get_optional_value(option)
         # If `NEED_REST` is set in `method_info.flags`, the `method_info.param_count + 1` register is set up to
         # reference an array that holds the superflous arguments.
         if MethodFlags.NEED_REST in method.flags:
@@ -145,7 +145,17 @@ class VirtualMachine:
         """
         Get actual optional value.
         """
-        raise NotImplementedError('get_optional_value')
+        if option.kind == ConstantKind.TRUE:
+            return True
+        if option.kind == ConstantKind.FALSE:
+            return False
+        if option.kind == ConstantKind.NULL:
+            return None
+        if option.kind == ConstantKind.UNDEFINED:
+            return undefined
+        if option.kind == ConstantKind.INT:
+            return self.integers[option.value]
+        raise NotImplementedError(option.kind)
 
 
 @dataclass

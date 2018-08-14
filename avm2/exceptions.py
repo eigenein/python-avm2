@@ -8,3 +8,8 @@ class ASException(Exception):
 class ASReturnException(ASException):
     def __init__(self, return_value: Any):
         self.return_value = return_value
+
+
+class ASJumpException(ASException):
+    def __init__(self, offset: int):
+        self.offset = offset

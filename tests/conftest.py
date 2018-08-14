@@ -62,3 +62,8 @@ def machine(abc_file: ABCFile) -> VirtualMachine:
 @fixture(scope='session')
 def get_elemental_penetration_method_index(machine: VirtualMachine) -> ABCMethodIndex:
     return machine.lookup_method('battle.BattleCore.getElementalPenetration')
+
+
+@fixture(scope='session')
+def hitrate_intensity_method_index(machine: VirtualMachine):
+    return machine.lookup_method('battle.BattleCore.hitrateIntensity')

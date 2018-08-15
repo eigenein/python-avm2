@@ -94,61 +94,61 @@ class ASNamespaceSet:
 @dataclass
 class ASMultiname:
     kind: MultinameKind
-    namespace: Optional[ABCNamespaceIndex] = None
-    name: Optional[ABCStringIndex] = None
-    namespace_set: Optional[ABCNamespaceSetIndex] = None
-    q_name: Optional[ABCMultinameIndex] = None
-    types: Optional[List[ABCMultinameIndex]] = None
+    namespace_index: Optional[ABCNamespaceIndex] = None
+    name_index: Optional[ABCStringIndex] = None
+    namespace_set_index: Optional[ABCNamespaceSetIndex] = None
+    q_name_index: Optional[ABCMultinameIndex] = None
+    type_indices: Optional[List[ABCMultinameIndex]] = None
 
     def __init__(self, reader: MemoryViewReader):
         self.kind = MultinameKind(reader.read_u8())
         if self.kind in (MultinameKind.Q_NAME, MultinameKind.Q_NAME_A):
-            self.namespace = reader.read_int()
-            self.name = reader.read_int()
+            self.namespace_index = reader.read_int()
+            self.name_index = reader.read_int()
         elif self.kind in (MultinameKind.RTQ_NAME, MultinameKind.RTQ_NAME_A):
-            self.name = reader.read_int()
+            self.name_index = reader.read_int()
         elif self.kind in (MultinameKind.RTQ_NAME_L, MultinameKind.RTQ_NAME_LA):
             pass
         elif self.kind in (MultinameKind.MULTINAME, MultinameKind.MULTINAME_A):
-            self.name = reader.read_int()
-            self.namespace_set = reader.read_int()
+            self.name_index = reader.read_int()
+            self.namespace_set_index = reader.read_int()
         elif self.kind in (MultinameKind.MULTINAME_L, MultinameKind.MULTINAME_LA):
-            self.namespace_set = reader.read_int()
+            self.namespace_set_index = reader.read_int()
         elif self.kind == MultinameKind.TYPE_NAME:
-            self.q_name = reader.read_int()
-            self.types = read_array(reader, MemoryViewReader.read_int)
+            self.q_name_index = reader.read_int()
+            self.type_indices = read_array(reader, MemoryViewReader.read_int)
         else:
             assert False, 'unreachable code'
 
     def qualified_name(self, constant_pool: ASConstantPool) -> str:
         assert self.kind == MultinameKind.Q_NAME, self.kind
-        assert self.namespace
-        assert self.name
-        namespace = constant_pool.namespaces[self.namespace]
+        assert self.namespace_index
+        assert self.name_index
+        namespace = constant_pool.namespaces[self.namespace_index]
         assert namespace.name
-        return f'{constant_pool.strings[namespace.name]}.{constant_pool.strings[self.name]}'.strip('.')
+        return f'{constant_pool.strings[namespace.name]}.{constant_pool.strings[self.name_index]}'.strip('.')
 
 
 @dataclass
 class ASMethod:
     param_count: int
-    return_type: ABCMultinameIndex
-    param_types: List[ABCMultinameIndex]
-    name: ABCStringIndex
+    return_type_index: ABCMultinameIndex
+    param_type_indices: List[ABCMultinameIndex]
+    name_index: ABCStringIndex
     flags: MethodFlags
     options: Optional[List[ASOptionDetail]] = None
-    param_names: Optional[List[ABCStringIndex]] = None
+    param_name_indices: Optional[List[ABCStringIndex]] = None
 
     def __init__(self, reader: MemoryViewReader):
         self.param_count = reader.read_int()
-        self.return_type = reader.read_int()
-        self.param_types = read_array(reader, MemoryViewReader.read_int, self.param_count)
-        self.name = reader.read_int()
+        self.return_type_index = reader.read_int()
+        self.param_type_indices = read_array(reader, MemoryViewReader.read_int, self.param_count)
+        self.name_index = reader.read_int()
         self.flags = MethodFlags(reader.read_u8())
         if MethodFlags.HAS_OPTIONAL in self.flags:
             self.options = read_array(reader, ASOptionDetail)
         if MethodFlags.HAS_PARAM_NAMES in self.flags:
-            self.param_names = read_array(reader, MemoryViewReader.read_int, self.param_count)
+            self.param_name_indices = read_array(reader, MemoryViewReader.read_int, self.param_count)
 
 
 @dataclass
@@ -163,55 +163,55 @@ class ASOptionDetail:
 
 @dataclass
 class ASMetadata:
-    name: ABCStringIndex
+    name_index: ABCStringIndex
     items: List[ASItem]
 
     def __init__(self, reader: MemoryViewReader):
-        self.name = reader.read_int()
+        self.name_index = reader.read_int()
         self.items = read_array(reader, ASItem)
 
 
 @dataclass
 class ASItem:
-    key: ABCStringIndex
-    value: ABCStringIndex
+    key_index: ABCStringIndex
+    value_index: ABCStringIndex
 
     def __init__(self, reader: MemoryViewReader):
-        self.key = reader.read_int()
-        self.value = reader.read_int()
+        self.key_index = reader.read_int()
+        self.value_index = reader.read_int()
 
 
 @dataclass
 class ASInstance:
-    name: ABCMultinameIndex
-    super_name: ABCMultinameIndex
+    name_index: ABCMultinameIndex
+    super_name_index: ABCMultinameIndex
     flags: ClassFlags
-    interfaces: List[ABCMultinameIndex]
-    init: ABCMethodIndex
+    interface_indices: List[ABCMultinameIndex]
+    init_index: ABCMethodIndex
     traits: List[ASTrait]
-    protected_ns: Optional[ABCNamespaceIndex] = None
+    protected_namespace_index: Optional[ABCNamespaceIndex] = None
 
     def __init__(self, reader: MemoryViewReader):
-        self.name = reader.read_int()
-        self.super_name = reader.read_int()
+        self.name_index = reader.read_int()
+        self.super_name_index = reader.read_int()
         self.flags = ClassFlags(reader.read_u8())
         if ClassFlags.PROTECTED_NS in self.flags:
-            self.protected_ns = reader.read_int()
-        self.interfaces = read_array(reader, MemoryViewReader.read_int)
-        self.init = reader.read_int()
+            self.protected_namespace_index = reader.read_int()
+        self.interface_indices = read_array(reader, MemoryViewReader.read_int)
+        self.init_index = reader.read_int()
         self.traits = read_array(reader, ASTrait)
 
 
 @dataclass
 class ASTrait:
-    name: ABCMultinameIndex
+    name_index: ABCMultinameIndex
     kind: TraitKind
     attributes: TraitAttributes
     data: Union[ASTraitSlot, ASTraitClass, ASTraitFunction, ASTraitMethod]
     metadata: Optional[List[ABCMetadataIndex]] = None
 
     def __init__(self, reader: MemoryViewReader):
-        self.name = reader.read_int()
+        self.name_index = reader.read_int()
         kind = reader.read_u8()
         self.kind = TraitKind(kind & 0x0F)
         self.attributes = TraitAttributes(kind >> 4)
@@ -232,13 +232,13 @@ class ASTrait:
 @dataclass
 class ASTraitSlot:
     slot_id: int
-    type_name: ABCMultinameIndex
+    type_name_index: ABCMultinameIndex
     vindex: int
     vkind: Optional[ConstantKind] = None
 
     def __init__(self, reader: MemoryViewReader):
         self.slot_id = reader.read_int()
-        self.type_name = reader.read_int()
+        self.type_name_index = reader.read_int()
         self.vindex = reader.read_int()
         if self.vindex:
             self.vkind = ConstantKind(reader.read_u8())
@@ -247,56 +247,56 @@ class ASTraitSlot:
 @dataclass
 class ASTraitClass:
     slot_id: int
-    class_: ABCClassIndex
+    class_index: ABCClassIndex
 
     def __init__(self, reader: MemoryViewReader):
         self.slot_id = reader.read_int()
-        self.class_ = reader.read_int()
+        self.class_index = reader.read_int()
 
 
 @dataclass
 class ASTraitFunction:
     slot_id: int
-    function_: ABCMethodIndex
+    function_index: ABCMethodIndex
 
     def __init__(self, reader: MemoryViewReader):
         self.slot_id = reader.read_int()
-        self.function_ = reader.read_int()
+        self.function_index = reader.read_int()
 
 
 @dataclass
 class ASTraitMethod:
     disposition_id: int
-    method: ABCMethodIndex
+    method_index: ABCMethodIndex
 
     def __init__(self, reader: MemoryViewReader):
         self.disposition_id = reader.read_int()
-        self.method = reader.read_int()
+        self.method_index = reader.read_int()
 
 
 @dataclass
 class ASClass:
-    init: ABCMethodIndex
+    init_index: ABCMethodIndex
     traits: List[ASTrait]
 
     def __init__(self, reader: MemoryViewReader):
-        self.init = reader.read_int()
+        self.init_index = reader.read_int()
         self.traits = read_array(reader, ASTrait)
 
 
 @dataclass
 class ASScript:
-    init: ABCMethodIndex
+    init_index: ABCMethodIndex
     traits: List[ASTrait]
 
     def __init__(self, reader: MemoryViewReader):
-        self.init = reader.read_int()
+        self.init_index = reader.read_int()
         self.traits = read_array(reader, ASTrait)
 
 
 @dataclass
 class ASMethodBody:
-    method: ABCMethodIndex
+    method_index: ABCMethodIndex
     max_stack: int
     local_count: int
     init_scope_depth: int
@@ -306,7 +306,7 @@ class ASMethodBody:
     traits: List[ASTrait]
 
     def __init__(self, reader: MemoryViewReader):
-        self.method = reader.read_int()
+        self.method_index = reader.read_int()
         self.max_stack = reader.read_int()
         self.local_count = reader.read_int()
         self.init_scope_depth = reader.read_int()
@@ -321,12 +321,12 @@ class ASException:
     from_: int
     to: int
     target: int
-    exc_type: ABCStringIndex
-    var_name: ABCStringIndex
+    exc_type_index: ABCStringIndex
+    var_name_index: ABCStringIndex
 
     def __init__(self, reader: MemoryViewReader):
         self.from_ = reader.read_int()
         self.to = reader.read_int()
         self.target = reader.read_int()
-        self.exc_type = reader.read_int()
-        self.var_name = reader.read_int()
+        self.exc_type_index = reader.read_int()
+        self.var_name_index = reader.read_int()

@@ -5,8 +5,8 @@ from typing import Any, Dict, Iterable, List, Tuple, Union
 
 import avm2.abc.instructions
 from avm2.abc.enums import ConstantKind, MethodFlags, TraitKind
-from avm2.abc.types import (ABCClassIndex, ABCFile, ABCMethodBodyIndex, ABCMethodIndex, ABCScriptIndex, ASMethod,
-    ASMethodBody, ASOptionDetail)
+from avm2.abc.types import (ABCClassIndex, ABCFile, ABCMethodBodyIndex, ABCMethodIndex, ABCScriptIndex, ASMethodBody,
+    ASOptionDetail)
 from avm2.exceptions import ASJumpException, ASReturnException
 from avm2.io import MemoryViewReader
 from avm2.runtime import ASObject, undefined
@@ -43,32 +43,32 @@ class VirtualMachine:
         """
         Link methods and methods bodies.
         """
-        return {method_body.method: index for index, method_body in enumerate(self.abc_file.method_bodies)}
+        return {method_body.method_index: index for index, method_body in enumerate(self.abc_file.method_bodies)}
 
     def link_names_to_classes(self) -> Iterable[Tuple[str, ABCClassIndex]]:
         """
         Link class names and class indices.
         """
         for index, instance in enumerate(self.abc_file.instances):
-            assert instance.name
-            yield self.multinames[instance.name].qualified_name(self.constant_pool), index
+            assert instance.name_index
+            yield self.multinames[instance.name_index].qualified_name(self.constant_pool), index
 
     def link_names_to_methods(self) -> Iterable[Tuple[str, ABCMethodIndex]]:
         """
         Link method names and method indices.
         """
         for instance, class_ in zip(self.abc_file.instances, self.abc_file.classes):
-            qualified_class_name = self.multinames[instance.name].qualified_name(self.constant_pool)
+            qualified_class_name = self.multinames[instance.name_index].qualified_name(self.constant_pool)
             for trait in class_.traits:
                 if trait.kind in (TraitKind.GETTER, TraitKind.SETTER, TraitKind.METHOD):
-                    qualified_trait_name = self.multinames[trait.name].qualified_name(self.constant_pool)
-                    yield f'{qualified_class_name}.{qualified_trait_name}', trait.data.method
+                    qualified_trait_name = self.multinames[trait.name_index].qualified_name(self.constant_pool)
+                    yield f'{qualified_class_name}.{qualified_trait_name}', trait.data.method_index
 
     def link_classes_to_scripts(self) -> Iterable[Tuple[ABCClassIndex, ABCScriptIndex]]:
         for script_index, script in enumerate(self.abc_file.scripts):
             for trait in script.traits:
                 if trait.kind == TraitKind.CLASS:
-                    yield trait.data.class_, script_index
+                    yield trait.data.class_index, script_index
 
     # Lookups.
     # ------------------------------------------------------------------------------------------------------------------
@@ -89,7 +89,7 @@ class VirtualMachine:
         if script_index in self.script_objects:
             return
         script_object = ASObject()
-        self.call_method(self.abc_file.scripts[script_index].init, script_object)  # TODO: what is `this`?
+        self.call_method(self.abc_file.scripts[script_index].init_index, script_object)  # TODO: what is `this`?
         self.script_objects[script_index] = script_object
 
     # Classes.
@@ -98,7 +98,7 @@ class VirtualMachine:
     def init_class(self, class_index: ABCClassIndex):
         class_object = ASObject()
         self.class_objects[class_index] = class_object
-        self.call_method(self.abc_file.classes[class_index].init, class_object)
+        self.call_method(self.abc_file.classes[class_index].init_index, class_object)
         # TODO: the scope stack is saved by the created ClassClosure.
 
     def new_instance(self, index_or_name: Union[ABCClassIndex, str], *args) -> ASObject:
@@ -111,7 +111,7 @@ class VirtualMachine:
         self.init_script(self.class_to_script[class_index])
 
         instance = ASObject()
-        self.call_method(self.abc_file.instances[class_index].init, instance, *args)
+        self.call_method(self.abc_file.instances[class_index].init_index, instance, *args)
         return instance
 
     # Execution.
@@ -133,15 +133,8 @@ class VirtualMachine:
             index = self.lookup_method(index_or_name)
         else:
             raise ValueError(index_or_name)
-        return self.execute_method_body(self.method_to_body[index], this, *args)
-
-    def execute_method_body(self, index: ABCMethodBodyIndex, this: Any, *args) -> Any:
-        """
-        Execute the method body and get a return value.
-        """
-        method_body: ASMethodBody = self.abc_file.method_bodies[index]
-        method: ASMethod = self.abc_file.methods[method_body.method]
-        environment = self.create_method_environment(method, method_body, this, *args)
+        method_body = self.abc_file.method_bodies[self.method_to_body[index]]
+        environment = self.create_method_environment(method_body, this, *args)
         return self.execute_code(method_body.code, environment)
 
     def execute_code(self, code: memoryview, environment: MethodEnvironment) -> Any:
@@ -161,10 +154,11 @@ class VirtualMachine:
     # Unclassified.
     # ------------------------------------------------------------------------------------------------------------------
 
-    def create_method_environment(self, method: ASMethod, method_body: ASMethodBody, this: Any, *args) -> MethodEnvironment:
+    def create_method_environment(self, method_body: ASMethodBody, this: Any, *args) -> MethodEnvironment:
         """
         Create method execution environment: registers and stacks.
         """
+        method = self.abc_file.methods[method_body.method_index]
         # There are `method_body_info.local_count` registers.
         registers: List[Any] = [undefined] * method_body.local_count
         # Register 0 holds the "this" object. This value is never null.

@@ -4,7 +4,7 @@ from dataclasses import dataclass, fields
 from typing import Any, Callable, ClassVar, Dict, Tuple, Type, TypeVar, NewType, Optional
 
 import avm2.vm
-from avm2.exceptions import ASReturnException, ASJumpException, ASError
+from avm2.exceptions import ASReturnException, ASJumpException
 from avm2.runtime import undefined
 from avm2.abc.parser import read_array
 from avm2.io import MemoryViewReader
@@ -339,9 +339,9 @@ class FindPropStrict(Instruction):
     so that the multiname can be constructed correctly at runtime.
 
     This searches the scope stack, and then the saved scope in the method closure, for a property
-    with the name specified by the multiname at index.
+    with the name specified by the multiname at `index`.
 
-    If any of the objects searched is a with scope, its declared and dynamic properties will be
+    If any of the objects searched is a `with` scope, its declared and dynamic properties will be
     searched for a match. Otherwise only the declared traits of a scope will be searched. The
     global object will have its declared traits, dynamic properties, and prototype chain searched.
 
@@ -354,7 +354,19 @@ class FindPropStrict(Instruction):
     index: u30
 
     def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
-        raise NotImplementedError(f'{machine.multinames[self.index].qualified_name(machine.constant_pool)}')
+        multiname = machine.multinames[self.index]
+        # TODO: other kinds of multinames.
+        assert multiname.kind in (MultinameKind.Q_NAME, MultinameKind.Q_NAME_A), multiname
+        try:
+            object_, _, _ = machine.resolve_multiname(
+                environment.scope_stack,
+                machine.strings[multiname.name_index],
+                [machine.strings[machine.namespaces[multiname.namespace_index].name_index]],
+            )
+        except KeyError:
+            raise NotImplementedError('ReferenceError')
+        else:
+            environment.operand_stack.append(object_)
 
 
 @instruction(89)
@@ -391,14 +403,17 @@ class GetLex(Instruction):
 
     def execute(self, machine: avm2.vm.VirtualMachine, environment: avm2.vm.MethodEnvironment):
         multiname = machine.multinames[self.index]
-        assert multiname.kind == MultinameKind.Q_NAME
-        qualified_name = multiname.qualified_name(machine.constant_pool)
-        for scope in reversed(environment.scope_stack):
-            if qualified_name in scope:
-                environment.operand_stack.append(scope)
-                break
+        assert multiname.kind in (MultinameKind.Q_NAME, MultinameKind.Q_NAME_A)
+        try:
+            object_, name, namespace = machine.resolve_multiname(
+                environment.scope_stack,
+                machine.strings[multiname.name_index],
+                [machine.strings[machine.namespaces[multiname.namespace_index].name_index]],
+            )
+        except KeyError:
+            raise NotImplementedError('ReferenceError')
         else:
-            raise ASError(...)  # FIXME: ReferenceError
+            environment.operand_stack.append(object_.properties[namespace, name])
 
 
 @instruction(98)

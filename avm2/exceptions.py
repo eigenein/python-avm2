@@ -13,8 +13,3 @@ class ASReturnException(ASException):
 class ASJumpException(ASException):
     def __init__(self, offset: int):
         self.offset = offset
-
-
-class ASError(ASException):
-    def __init__(self, value: Any):
-        self.value = value

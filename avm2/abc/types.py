@@ -76,11 +76,11 @@ class ASConstantPool:
 @dataclass
 class ASNamespace:
     kind: NamespaceKind
-    name: ABCStringIndex
+    name_index: ABCStringIndex
 
     def __init__(self, reader: MemoryViewReader):
         self.kind = NamespaceKind(reader.read_u8())
-        self.name = reader.read_int()
+        self.name_index = reader.read_int()
 
 
 @dataclass
@@ -125,8 +125,8 @@ class ASMultiname:
         assert self.namespace_index
         assert self.name_index
         namespace = constant_pool.namespaces[self.namespace_index]
-        assert namespace.name
-        return f'{constant_pool.strings[namespace.name]}.{constant_pool.strings[self.name_index]}'.strip('.')
+        assert namespace.name_index
+        return f'{constant_pool.strings[namespace.name_index]}.{constant_pool.strings[self.name_index]}'.strip('.')
 
 
 @dataclass

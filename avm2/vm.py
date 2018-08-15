@@ -1,12 +1,19 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterable, List, Tuple, Union
+from typing import Any, DefaultDict, Dict, Iterable, List, Tuple, Union
 
 import avm2.abc.instructions
 from avm2.abc.enums import ConstantKind, MethodFlags, TraitKind
-from avm2.abc.types import (ABCClassIndex, ABCFile, ABCMethodBodyIndex, ABCMethodIndex, ABCScriptIndex, ASMethodBody,
-    ASOptionDetail)
+from avm2.abc.types import (
+    ABCClassIndex,
+    ABCFile,
+    ABCMethodBodyIndex,
+    ABCMethodIndex,
+    ABCScriptIndex,
+    ASMethodBody,
+)
 from avm2.exceptions import ASJumpException, ASReturnException
 from avm2.io import MemoryViewReader
 from avm2.runtime import ASObject, undefined
@@ -23,18 +30,21 @@ class VirtualMachine:
         self.multinames = self.constant_pool.multinames
         self.integers = self.constant_pool.integers
         self.doubles = self.constant_pool.doubles
+        self.namespaces = self.constant_pool.namespaces
 
         # Linking.
         self.method_to_body = self.link_methods_to_bodies()
+        self.class_to_script = self.link_classes_to_scripts()
         self.name_to_class = dict(self.link_names_to_classes())
         self.name_to_method = dict(self.link_names_to_methods())
-        self.class_to_script = dict(self.link_classes_to_scripts())
-        # TODO: method to class in order to initialise class.
 
         # Runtime.
-        self.class_objects: Dict[ABCClassIndex, ASObject] = dict()  # FIXME: unsure.
-        self.script_objects: Dict[ABCScriptIndex, ASObject] = dict()  # FIXME: unsure.
-        self.global_object = ASObject({'Object': ASObject})  # FIXME: unsure.
+        self.class_objects: DefaultDict[ABCClassIndex, ASObject] = defaultdict(ASObject)  # FIXME: unsure, prototypes?
+        self.script_objects: DefaultDict[ABCScriptIndex, ASObject] = defaultdict(ASObject)  # FIXME: unsure, what is it?
+        self.global_object = ASObject(properties={
+            ('', 'Object'): ASObject(),
+            ('flash.utils', 'Dictionary'): ASObject(),
+        })  # FIXME: unsure, prototypes again?
 
     # Linking.
     # ------------------------------------------------------------------------------------------------------------------
@@ -45,10 +55,19 @@ class VirtualMachine:
         """
         return {method_body.method_index: index for index, method_body in enumerate(self.abc_file.method_bodies)}
 
+    def link_classes_to_scripts(self) -> Dict[ABCClassIndex, ABCScriptIndex]:
+        return {
+            trait.data.class_index: script_index
+            for script_index, script in enumerate(self.abc_file.scripts)
+            for trait in script.traits
+            if trait.kind == TraitKind.CLASS
+        }
+
     def link_names_to_classes(self) -> Iterable[Tuple[str, ABCClassIndex]]:
         """
         Link class names and class indices.
         """
+        # FIXME: this is doubtful.
         for index, instance in enumerate(self.abc_file.instances):
             assert instance.name_index
             yield self.multinames[instance.name_index].qualified_name(self.constant_pool), index
@@ -57,6 +76,7 @@ class VirtualMachine:
         """
         Link method names and method indices.
         """
+        # FIXME: this is doubtful.
         for instance, class_ in zip(self.abc_file.instances, self.abc_file.classes):
             qualified_class_name = self.multinames[instance.name_index].qualified_name(self.constant_pool)
             for trait in class_.traits:
@@ -64,14 +84,24 @@ class VirtualMachine:
                     qualified_trait_name = self.multinames[trait.name_index].qualified_name(self.constant_pool)
                     yield f'{qualified_class_name}.{qualified_trait_name}', trait.data.method_index
 
-    def link_classes_to_scripts(self) -> Iterable[Tuple[ABCClassIndex, ABCScriptIndex]]:
-        for script_index, script in enumerate(self.abc_file.scripts):
-            for trait in script.traits:
-                if trait.kind == TraitKind.CLASS:
-                    yield trait.data.class_index, script_index
-
-    # Lookups.
+    # Resolving.
     # ------------------------------------------------------------------------------------------------------------------
+
+    def resolve_multiname(self, stack: List[ASObject], name: str, namespaces: Iterable[str]) -> Tuple[ASObject, str, str]:
+        for object_ in reversed(stack):
+            for namespace in namespaces:
+                try:
+                    return self.resolve_qname(object_, namespace, name), name, namespace
+                except KeyError:
+                    pass
+        raise KeyError(name, namespaces)
+
+    def resolve_qname(self, object_: ASObject, namespace: str, name: str) -> Any:
+        # Typically, the order of the search for resolving multinames is
+        # the object’s declared traits, its dynamic properties, and finally the prototype chain.
+        # TODO: declared traits.
+        return object_.properties[namespace, name]
+        # TODO: prototype chain.
 
     def lookup_class(self, qualified_name: str) -> ABCClassIndex:
         return self.name_to_class[qualified_name]
@@ -86,19 +116,16 @@ class VirtualMachine:
         """
         Initialise the specified script.
         """
-        if script_index in self.script_objects:
-            return
-        script_object = ASObject()
-        self.call_method(self.abc_file.scripts[script_index].init_index, script_object)  # TODO: what is `this`?
-        self.script_objects[script_index] = script_object
+        if script_index not in self.script_objects:
+            # TODO: what is `this`?
+            self.call_method(self.abc_file.scripts[script_index].init_index, self.script_objects[script_index])
 
     # Classes.
     # ------------------------------------------------------------------------------------------------------------------
 
     def init_class(self, class_index: ABCClassIndex):
-        class_object = ASObject()
-        self.class_objects[class_index] = class_object
-        self.call_method(self.abc_file.classes[class_index].init_index, class_object)
+        self.init_script(self.class_to_script[class_index])
+        self.call_method(self.abc_file.classes[class_index].init_index, self.class_objects[class_index])
         # TODO: the scope stack is saved by the created ClassClosure.
 
     def new_instance(self, index_or_name: Union[ABCClassIndex, str], *args) -> ASObject:
@@ -108,9 +135,9 @@ class VirtualMachine:
             class_index = self.lookup_class(index_or_name)
         else:
             raise ValueError(index_or_name)
-        self.init_script(self.class_to_script[class_index])
 
-        instance = ASObject()
+        instance = ASObject(class_index=class_index)
+        # FIXME: call super constructor?
         self.call_method(self.abc_file.instances[class_index].init_index, instance, *args)
         return instance
 
@@ -133,6 +160,8 @@ class VirtualMachine:
             index = self.lookup_method(index_or_name)
         else:
             raise ValueError(index_or_name)
+
+        # TODO: init script on demand.
         method_body = self.abc_file.method_bodies[self.method_to_body[index]]
         environment = self.create_method_environment(method_body, this, *args)
         return self.execute_code(method_body.code, environment)
@@ -172,7 +201,7 @@ class VirtualMachine:
         if method.options:
             assert len(method.options) <= method.param_count
             for i, option in zip(range(len(args) + 1, method_body.local_count), method.options):
-                registers[i] = self.get_optional_value(option)
+                registers[i] = self.get_constant(option.kind, option.value)
         # If `NEED_REST` is set in `method_info.flags`, the `method_info.param_count + 1` register is set up to
         # reference an array that holds the superflous arguments.
         if MethodFlags.NEED_REST in method.flags:
@@ -183,30 +212,35 @@ class VirtualMachine:
         if MethodFlags.NEED_ARGUMENTS in method.flags:
             registers[method.param_count + 1] = args
         assert len(registers) == method_body.local_count
+        # FIXME: unsure about the global object here.
         return MethodEnvironment(registers=registers, scope_stack=[self.global_object])
 
-    def get_optional_value(self, option: ASOptionDetail) -> Any:
+    def get_constant(self, kind: ConstantKind, index: int) -> Any:
         """
-        Get actual optional value.
+        Get constant specified by its kind and index.
         """
-        if option.kind == ConstantKind.TRUE:
+        if kind == ConstantKind.TRUE:
             return True
-        if option.kind == ConstantKind.FALSE:
+        if kind == ConstantKind.FALSE:
             return False
-        if option.kind == ConstantKind.NULL:
+        if kind == ConstantKind.NULL:
             return None
-        if option.kind == ConstantKind.UNDEFINED:
+        if kind == ConstantKind.UNDEFINED:
             return undefined
-        if option.kind == ConstantKind.INT:
-            return self.integers[option.value]
-        raise NotImplementedError(option.kind)
+        if kind == ConstantKind.INT:
+            return self.integers[index]
+        if kind == ConstantKind.NAMESPACE:
+            return self.namespaces[index]
+        if kind == ConstantKind.MULTINAME:
+            return self.multinames[index]
+        raise NotImplementedError(kind)
 
 
 @dataclass
 class MethodEnvironment:
-    registers: List[Any]
-    scope_stack: List[Any]
-    operand_stack: List[Any] = field(default_factory=list)
+    registers: List[Any]  # FIXME: should be ASObject's too.
+    scope_stack: List[ASObject]
+    operand_stack: List[Any] = field(default_factory=list)  # FIXME: should be ASObject's too.
 
 
 def execute_tag(tag: Tag) -> VirtualMachine:
